@@ -37,7 +37,7 @@
   --divider-color: rgba(255, 255, 255, 0.25);
 }
 
-[data-theme="white"] {
+[data-theme="light"] {
   --bg-base:       hsl(0, 0%, 100%);
   --bg-surface:    hsl(0, 0%, 100%);
   --bg-elevated:   hsl(0, 0%, 95%);

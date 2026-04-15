@@ -291,7 +291,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = settings.theme ?? "black";
+    document.documentElement.dataset.theme = settings.theme ?? "dark";
   }, [settings.theme]);
 
   const handleTabChange = (nextTab: Tab) => {
