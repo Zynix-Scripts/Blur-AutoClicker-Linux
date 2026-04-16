@@ -1,3 +1,17 @@
+# v3.4.1 - 16.06.2026 (d.m.y)
+## 🔹 Changed:
+- Changed size and style of ko-fi donation button
+- made css more consistent (thank you lulkebit)
+- added ci checks (thank you Rorky47)
+- added windows signing support (thank you David-T-Campos)
+## 🔺 Fix:
+
+## 🔸 Performance Updates:
+
+## 🪦 Removed:
+
+
+
 # v3.4.0 - 15.05.2026 (d.m.y)
 ## ❇️ New:
 - Added Light Mode with Light / Dark toggle in the settings
