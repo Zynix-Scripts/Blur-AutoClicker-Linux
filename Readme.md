@@ -62,6 +62,10 @@ Config and stats are stored in `%appdata%/BlurAutoClicker`.
 *Info: If you are on version 2.1.2 or below, delete the old executable (the installer will not delete it for you).
 The old Config and Stats files will unfortunately not be compatible with the new versions (3.0.0 and above), so they will be deleted upon launching the application.*
 
+### Windows trust / signing
+
+Unsigned GitHub-downloaded Windows installers can still show a SmartScreen warning. Tauri updater signing is separate from Windows Authenticode signing. See [docs/windows-release-trust.md](docs/windows-release-trust.md) for build commands, signature checks, and the release-trust checklist.
+
 ---
 
 ## Support the project!
