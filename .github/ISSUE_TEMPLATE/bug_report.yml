@@ -14,7 +14,7 @@ body:
     id: version
     attributes:
       label: Blur Auto Clicker version
-      description: Example: 3.3.0
+      description: "Example: 3.3.0"
       placeholder: 3.3.0
     validations:
       required: true
@@ -23,7 +23,7 @@ body:
     id: windows_version
     attributes:
       label: Windows version
-      description: Example: Windows 11 24H2
+      description: "Example: Windows 11 24H2"
       placeholder: Windows 11 24H2
     validations:
       required: true
@@ -126,4 +126,3 @@ body:
     attributes:
       label: Additional context
       description: Add anything else that may help, such as screenshots, recordings, logs, or unusual system behavior
-
