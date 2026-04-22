@@ -1,3 +1,5 @@
+> [!WARNING]
+> This does not currently work and is still a WIP. the current code here is windows only until I update this branch again (which will be very soon.)
 # Blur Auto Clicker
 
 <div align="center">
