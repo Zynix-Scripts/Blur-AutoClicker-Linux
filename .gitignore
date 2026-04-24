@@ -45,3 +45,5 @@ lerna-debug.log*
 .VSCodeCounter/
 *.csv
 .continue
+# Binary
+BlurAutoClicker-linux

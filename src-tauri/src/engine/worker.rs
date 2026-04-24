@@ -15,21 +15,22 @@ use super::failsafe::should_stop_for_failsafe;
 use super::mouse::{get_button_flags, get_cursor_pos, move_mouse, send_clicks, smooth_move};
 use super::rng::SmallRng;
 use super::ClickerConfig;
-use super::NtSetTimerResolution;
 use super::RunOutcome;
 use super::CLICK_COUNT;
 
-// -- CPU measurement --
-// changed from normal cpu measurement because it was not accurately
-// showing cpu usage for short clicker run times.
+#[cfg(target_os = "windows")]
+use super::NtSetTimerResolution;
 
+#[cfg(target_os = "windows")]
 windows_targets::link!(
     "kernel32.dll" "system" fn QueryThreadCycleTime(thread: *mut core::ffi::c_void, cycles: *mut u64) -> i32
 );
+#[cfg(target_os = "windows")]
 windows_targets::link!(
     "kernel32.dll" "system" fn GetCurrentThread() -> *mut core::ffi::c_void
 );
 
+#[cfg(target_os = "windows")]
 #[inline]
 fn thread_cycles() -> u64 {
     let mut cycles: u64 = 0;
@@ -39,26 +40,38 @@ fn thread_cycles() -> u64 {
     cycles
 }
 
-// Calibrates the CPU cycle frequency
+#[cfg(target_os = "linux")]
+#[inline]
+fn thread_cycles() -> u64 {
+    let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut ts) };
+    ts.tv_sec as u64 * 1_000_000_000 + ts.tv_nsec as u64
+}
+
+#[cfg(target_os = "windows")]
 fn calibrate_cycle_freq() -> f64 {
     let start_cycles = thread_cycles();
     let start = Instant::now();
 
-    // Spin for ~5ms
     while start.elapsed().as_millis() < 5 {
         std::hint::spin_loop();
     }
 
     let cycle_delta = thread_cycles().saturating_sub(start_cycles);
     let wall_secs = start.elapsed().as_secs_f64();
-    
+
     if wall_secs > 0.0 && cycle_delta > 0 {
         let freq = cycle_delta as f64 / wall_secs;
         log::info!("CPU: calibrated at {:.0} MHz", freq / 1_000_000.0);
         freq
     } else {
-        3_000_000_000.0 // fallback 3 GHz
+        3_000_000_000.0
     }
+}
+
+#[cfg(target_os = "linux")]
+fn calibrate_cycle_freq() -> f64 {
+    1_000_000_000.0
 }
 
 #[derive(Clone)]
@@ -130,6 +143,7 @@ pub fn start_clicker_inner(app: &AppHandle) -> Result<ClickerStatusPayload, Stri
     emit_status(app);
     Ok(payload)
 }
+
 pub fn stop_clicker_inner(
     app: &AppHandle,
     stop_reason: Option<String>,
@@ -246,13 +260,13 @@ pub fn now_epoch_ms() -> u64 {
         .unwrap_or(0)
 }
 
-// -- Engine loop --
-
 pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
     CLICK_COUNT.store(0, Ordering::SeqCst);
 
-    let mut current = 0u32;
-    unsafe { NtSetTimerResolution(10000, 1, &mut current) };
+    #[cfg(target_os = "windows")]
+    let mut timer_res_current = 0u32;
+    #[cfg(target_os = "windows")]
+    unsafe { NtSetTimerResolution(10000, 1, &mut timer_res_current) };
 
     let cycle_freq = calibrate_cycle_freq();
     let cpu_cycles_start = thread_cycles();
@@ -378,7 +392,8 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
         }
     }
 
-    unsafe { NtSetTimerResolution(10000, 0, &mut current) };
+    #[cfg(target_os = "windows")]
+    unsafe { NtSetTimerResolution(10000, 0, &mut timer_res_current) };
 
     let elapsed_secs = start_time.elapsed().as_secs_f64();
     let cpu_cycles_end = thread_cycles();

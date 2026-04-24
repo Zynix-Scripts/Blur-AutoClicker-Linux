@@ -77,8 +77,8 @@ pub fn run() {
 
             let initial_hotkey = {
                 let state = app.state::<ClickerState>();
-                let hotkey = state.settings.lock().unwrap().hotkey.clone();
-                hotkey
+                let x = state.settings.lock().unwrap().hotkey.clone();
+                x
             };
 
             let handle = app.handle().clone();

@@ -87,7 +87,8 @@ pub fn detect_failsafe(
 
 pub fn should_stop_for_failsafe(config: &ClickerConfig) -> Option<String> {
     let cursor = current_cursor_position()?;
-    let monitors = current_monitor_rects()?;
+    let monitors = current_monitor_rects()
+        .or_else(|| super::mouse::current_virtual_screen_rect().map(|r| vec![r]))?;
     detect_failsafe(cursor, &monitors, config)
 }
 

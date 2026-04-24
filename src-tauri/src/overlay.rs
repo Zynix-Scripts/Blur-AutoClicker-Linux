@@ -1,5 +1,5 @@
 use crate::app_state::ClickerState;
-use crate::engine::mouse::{current_monitor_rects, current_virtual_screen_rect, VirtualScreenRect};
+use crate::engine::mouse::{current_monitor_rects, current_virtual_screen_rect};
 use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -8,6 +8,9 @@ use tauri::{AppHandle, Emitter, Manager};
 static LAST_ZONE_SHOW: Mutex<Option<Instant>> = Mutex::new(None);
 pub static OVERLAY_THREAD_RUNNING: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(true);
+#[cfg(target_os = "linux")]
+static OVERLAY_CLICK_THROUGH_SET: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -25,13 +28,13 @@ pub fn init_overlay(app: &AppHandle) -> Result<(), String> {
 
     log::info!("[Overlay] Running one-time init...");
 
-    window
-        .set_ignore_cursor_events(true)
-        .map_err(|e| e.to_string())?;
     let _ = window.set_decorations(false);
 
     #[cfg(target_os = "windows")]
     {
+        window
+            .set_ignore_cursor_events(true)
+            .map_err(|e| e.to_string())?;
         apply_win32_styles(&window)?;
         let _ = sync_overlay_bounds(&window)?;
     }
@@ -64,6 +67,18 @@ pub fn show_overlay(app: &AppHandle) -> Result<(), String> {
         let visible = window.is_visible().unwrap_or(false);
         if !visible {
             show_overlay_window(&window)?;
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let visible = window.is_visible().unwrap_or(false);
+        if !visible {
+            let _ = window.show();
+        }
+        if !OVERLAY_CLICK_THROUGH_SET.load(Ordering::SeqCst) {
+            let _ = window.set_ignore_cursor_events(true);
+            OVERLAY_CLICK_THROUGH_SET.store(true, Ordering::SeqCst);
         }
     }
 
@@ -107,14 +122,10 @@ pub fn show_overlay(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-// ---- Background timer ----
-
 pub fn check_auto_hide(app: &AppHandle) {
     let mut last = LAST_ZONE_SHOW.lock().unwrap();
     if let Some(instant) = *last {
         if instant.elapsed() >= Duration::from_secs(3) {
-            // ↑ auto-hide after timer
-
             *last = None;
             if let Some(window) = app.get_webview_window("overlay") {
                 log::info!("[Overlay] Auto-hide: hiding window");
@@ -123,6 +134,10 @@ pub fn check_auto_hide(app: &AppHandle) {
                     if let Ok(hwnd) = get_hwnd(&window) {
                         unsafe { ShowWindow(hwnd, 0) };
                     }
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    let _ = window.hide();
                 }
             }
         }
@@ -140,7 +155,9 @@ pub fn hide_overlay(app: AppHandle) -> Result<(), String> {
             }
         }
         #[cfg(not(target_os = "windows"))]
-        let _ = window.hide();
+        {
+            let _ = window.hide();
+        }
     }
     Ok(())
 }

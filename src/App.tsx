@@ -454,7 +454,7 @@ export default function App() {
         positionY: point.y,
       });
     } catch (err) {
-      console.error("Failed to pick position:", err);
+      console.error("Failed to pick position:", err);	
     }
   };
 
