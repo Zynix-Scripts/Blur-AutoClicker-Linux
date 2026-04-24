@@ -14,7 +14,7 @@ pub async fn check_for_updates(app: AppHandle) -> Result<Option<CheckUpdateResul
         .version
         .clone()
         .unwrap_or_else(|| "0.0.0".into());
-    let url = "https://api.github.com/repos/Blur009/Blur-AutoClicker/releases/latest";
+    let url = "https://api.github.com/repos/Zynix-Scripts/Blur-AutoClicker-Linux/releases/latest";
     let client = reqwest::Client::new();
 
     let response = client
