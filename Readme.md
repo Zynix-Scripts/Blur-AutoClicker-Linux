@@ -1,6 +1,8 @@
-[![Downloads](https://img.shields.io/github/downloads/Blur009/Blur-AutoClicker/total?style=for-the-badge&label=downloads)](https://github.com/Blur009/Blur-AutoClicker/releases)
+[![Downloads](https://img.shields.io/github/downloads/Blur009/Blur-AutoClicker/total?style=for-the-badge&label=downloads)](https://github.com/Zynix-Scripts/Blur-AutoClicker-Linux/releases)
 
-# Blur Auto Clicker
+# Blur Auto Clicker Ported To Linux
+
+## Supports Wayland AND X11
 
 <div align="center">
     <img src="https://github.com/Blur009/Blur-AutoClicker/blob/main/public/V3.0.0_UI.png" width="600"/>
