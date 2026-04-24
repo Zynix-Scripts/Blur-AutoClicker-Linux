@@ -2,8 +2,6 @@
 
 # Blur Auto Clicker | Linux Port
 
-> Source code is on the [linux branch](https://github.com/Zynix-Scripts/Blur-AutoClicker-Linux/tree/linux).
-
 ## Supports Wayland AND X11
 
 ## Why
