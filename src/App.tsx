@@ -6,6 +6,7 @@ import {
   LogicalSize,
 } from "@tauri-apps/api/window";
 import { lazy, useEffect, useRef, useState } from "react";
+import SystemWarningBanner from "./components/SystemWarningBanner";
 import UpdateBanner from "./components/Updatebanner";
 import { canonicalizeHotkeyForBackend } from "./hotkeys";
 import {
@@ -31,8 +32,8 @@ export type Tab = "simple" | "advanced" | "settings";
 
 const BACKEND_SETTINGS_SCHEMA_VERSION = 5;
 
-function getPanelSize(tab: Tab, settings: Settings, hasUpdate: boolean) {
-  const extra = hasUpdate ? 30 : 0;
+function getPanelSize(tab: Tab, settings: Settings, bannerCount: number) {
+  const extra = bannerCount * 30;
   if (tab === "settings") return { width: 500, height: 600 + extra };
   if (tab === "simple") return { width: 550, height: 175 + extra };
   return settings.explanationMode === "off"
@@ -50,20 +51,26 @@ async function getClampedPanelSize(
   const monitor = await currentMonitor();
   if (!monitor) return size;
 
-  const scale = monitor.scaleFactor || 1;
-  const workAreaWidth = Math.floor(monitor.workArea.size.width / scale);
-  const workAreaHeight = Math.floor(monitor.workArea.size.height / scale);
+  const scale = Math.max(monitor.scaleFactor || 1, 1);
+
+  let workAreaW = Math.floor(monitor.workArea.size.width / scale);
+  let workAreaH = Math.floor(monitor.workArea.size.height / scale);
+  if (workAreaW < 300 || workAreaH < 300) {
+    workAreaW = Math.floor(monitor.size.width / scale);
+    workAreaH = Math.floor(monitor.size.height / scale);
+  }
+
   const horizontalMargin = 24;
   const verticalMargin = 24;
 
   return {
     width: Math.min(
       Math.ceil(size.width * textScale),
-      Math.max(360, workAreaWidth - horizontalMargin),
+      Math.max(360, workAreaW - horizontalMargin),
     ),
     height: Math.min(
       Math.ceil(size.height * textScale),
-      Math.max(220, workAreaHeight - verticalMargin),
+      Math.max(220, workAreaH - verticalMargin),
     ),
   };
 }
@@ -99,6 +106,15 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+interface SystemDepsInfo {
+  display_server: string;
+  uinput_accessible: boolean;
+  in_input_group: boolean;
+  uinput_module_loaded: boolean;
+  is_root: boolean;
+  warnings: string[];
+}
+
 export default function App() {
   const [tab, setTab] = useState<Tab>("simple");
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -109,6 +125,7 @@ export default function App() {
     currentVersion: string;
     latestVersion: string;
   } | null>(null);
+  const [systemWarnings, setSystemWarnings] = useState<string[]>([]);
 
   const hotkeyTimer = useRef<number | null>(null);
   const hotkeyRequestIdRef = useRef(0);
@@ -225,7 +242,9 @@ export default function App() {
   };
 
   const applyStartupWindowPlacement = async () => {
-    await getCurrentWindow().center();
+    const monitor = await currentMonitor().catch(() => null);
+    if (!monitor) return;
+    await getCurrentWindow().center().catch(() => {});
   };
 
   const handleWindowClose = async () => {
@@ -234,6 +253,14 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true;
+
+    invoke<SystemDepsInfo>("check_system_deps")
+      .then((info) => {
+        if (info.warnings.length > 0) {
+          setSystemWarnings(info.warnings);
+        }
+      })
+      .catch((err) => console.error("check_system_deps failed:", err));
 
     void Promise.all([
       loadSettings(),
@@ -328,7 +355,8 @@ export default function App() {
           getComputedStyle(document.documentElement).fontSize,
         );
 
-        const preferredSize = getPanelSize(tab, settings, !!updateInfo);
+        const bannerCount = (updateInfo ? 1 : 0) + systemWarnings.length;
+        const preferredSize = getPanelSize(tab, settings, bannerCount);
         const { width, height } = await getClampedPanelSize(
           preferredSize,
           textScale,
@@ -382,7 +410,7 @@ export default function App() {
         console.error("Failed to size window:", err);
       }
     })();
-  }, [settings, settingsLoaded, tab, updateInfo]);
+  }, [settings, settingsLoaded, tab, updateInfo, systemWarnings]);
 
   useEffect(() => {
     const checkForUpdates = () => {
@@ -471,6 +499,15 @@ export default function App() {
         }
         onRequestClose={handleWindowClose}
       />
+      {systemWarnings.map((msg, i) => (
+        <SystemWarningBanner
+          key={i}
+          message={msg}
+          onDismiss={() =>
+            setSystemWarnings((prev) => prev.filter((_, j) => j !== i))
+          }
+        />
+      ))}
       {updateInfo && (
         <UpdateBanner
           key={`${updateInfo.currentVersion}:${updateInfo.latestVersion}`}

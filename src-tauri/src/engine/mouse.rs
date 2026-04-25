@@ -267,8 +267,6 @@ mod linux {
 
         static DEVICE: OnceLock<Option<Mutex<VirtualDevice>>> = OnceLock::new();
 
-        #[allow(dead_code)]
-
         fn get() -> Option<&'static Mutex<VirtualDevice>> {
             DEVICE.get_or_init(|| {
                 let dev = evdev::uinput::VirtualDeviceBuilder::new().ok()?
@@ -285,6 +283,10 @@ mod linux {
                     .build().ok()?;
                 Some(Mutex::new(dev))
             }).as_ref()
+        }
+
+        pub fn available() -> bool {
+            get().is_some()
         }
 
         pub fn send_button(flags: u32) {
@@ -329,6 +331,16 @@ mod linux {
     pub fn decode_linux_flag(flags: u32) -> (u8, bool) {
         ((flags >> 4) as u8, (flags & 1) == 1)
     }
+}
+
+#[cfg(target_os = "linux")]
+pub fn linux_use_x11() -> bool {
+    linux::use_x11()
+}
+
+#[cfg(target_os = "linux")]
+pub fn uinput_available() -> bool {
+    linux::uinput::available()
 }
 
 #[cfg(target_os = "linux")]

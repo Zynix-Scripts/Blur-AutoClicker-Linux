@@ -1,0 +1,71 @@
+.sys-warn-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  background: hsla(30, 80%, 18%, 0.95);
+  border-bottom: 1px solid hsla(35, 70%, 35%, 0.5);
+  flex-shrink: 0;
+}
+
+.sys-warn-icon {
+  font-size: 0.8rem;
+  color: var(--accent-yellow);
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.sys-warn-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.sys-warn-summary {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: hsl(35, 90%, 80%);
+  line-height: 1.4;
+}
+
+.sys-warn-details {
+  font-size: 0.65rem;
+  font-family: monospace;
+  color: hsl(35, 60%, 70%);
+  white-space: pre-wrap;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sys-warn-toggle {
+  font-size: 0.625rem;
+  font-family: var(--font-family-base);
+  color: hsl(35, 60%, 60%);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.sys-warn-toggle:hover {
+  color: var(--accent-yellow);
+}
+
+.sys-warn-dismiss {
+  font-size: 0.6rem;
+  color: hsl(35, 40%, 55%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 0 0 0.25rem;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.sys-warn-dismiss:hover {
+  color: var(--accent-yellow);
+}

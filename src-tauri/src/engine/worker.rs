@@ -109,6 +109,18 @@ pub fn start_clicker_inner(app: &AppHandle) -> Result<ClickerStatusPayload, Stri
         return Err(String::from("Clicker is already running"));
     }
 
+    #[cfg(target_os = "linux")]
+    {
+        use super::mouse::{linux_use_x11, uinput_available};
+        if !linux_use_x11() && !uinput_available() {
+            return Err(String::from(
+                "Cannot click: uinput device not accessible.\n\
+                 Make sure the uinput module is loaded and your user is in the 'input' group.\n\
+                 Fix: sudo usermod -aG input $USER  (then log out and back in)",
+            ));
+        }
+    }
+
     {
         *state.last_error.lock().unwrap() = None;
         *state.stop_reason.lock().unwrap() = None;

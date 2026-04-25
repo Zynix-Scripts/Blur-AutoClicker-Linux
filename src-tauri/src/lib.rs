@@ -4,6 +4,7 @@ mod app_state;
 mod engine;
 mod hotkeys;
 mod overlay;
+mod system_check;
 mod ui_commands;
 mod updates;
 
@@ -107,6 +108,7 @@ pub fn run() {
             ui_commands::reset_stats,
             updates::update_checker::check_for_updates,
             overlay::hide_overlay,
+            system_check::check_system_deps,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
