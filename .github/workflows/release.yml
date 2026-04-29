@@ -30,6 +30,9 @@ jobs:
           sudo apt install -y libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-dev
           sudo apt install -y dpkg-dev rpm
 
+      - name: Install tauri-cli
+        run: cargo install tauri-cli --version "^2" --locked
+
       - name: Install frontend dependencies
         run: npm install
 
