@@ -4,7 +4,7 @@
 
 ## Wayland-First Auto Clicker for Linux
 
-This port is built with **Wayland as a first-class citizen**. Most auto clickers on Linux only support X11 or break under native Wayland. This project aims to be the autoclicker that actually works on modern compositors.
+This port is built with **Wayland first as the other supports x11 fully**. Most auto clickers on Linux only support X11 or break under native Wayland. This project aims to be the autoclicker that actually works on modern compositors.
 
 ## Why
 
@@ -22,7 +22,6 @@ Performance is a core focus. RAM usage stays around 50 MB and is designed to nev
 | **Corner / Edge Stop** | Full | Full | Uses cached monitor geometry from Tauri |
 | **Position Clicking** | Full | Limited | Absolute cursor move unavailable on pure Wayland |
 | **Always on Top** | Full | Limited | Pin works via `_NET_WM_STATE_ABOVE`; pure Wayland has no standard protocol |
-| **Pixel Predator** | Full | Full | KDE via KWin D-Bus; wlroots via `grim` |
 | **Cursor Position** | Full | Unavailable | No standard Wayland protocol for global cursor query |
 | **Overlay** | Full | Full | Uses Tauri-provided monitor bounds |
 
@@ -60,12 +59,6 @@ Advanced Mode (includes all Simple Mode features plus):
 - Double clicks
 - Position Clicking (pick a position | the mouse moves there and clicks)
 - Clicks adjustable to per Second, Minute, Hour, or Day
-
-Pixel Predator:
-- Scan a screen region for a target color
-- Configurable color tolerance
-- Click or alert when the color is found
-- Two-point region picker
 
 Other Features:
 - Click stats (total clicks, sessions, avg CPU)
@@ -123,11 +116,11 @@ The built binary and packages are written to `src-tauri/target/release/bundle/`.
 
 ---
 
-## Support the Project
+## Support the main Project
 
 [![ko-fi](https://www.ko-fi.com/img/donate_sm.png)](https://ko-fi.com/blur009)
 
-You can also support the project by starring the repository and sharing it with friends. Thank you!
+You can also support the linux port by starring the repository and sharing it with friends. Thank you!
 
 ---
 
