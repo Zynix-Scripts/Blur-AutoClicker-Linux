@@ -45,9 +45,6 @@ echo "Checking packaging tools..."
 check_tool "dpkg-deb" "deb" "Debian (.deb)" "dpkg"
 check_tool "rpmbuild" "rpm" "RPM (.rpm)"     "rpm-build (Debian) / rpm-tools (Arch)"
 
-TAURI_TARGETS+=("appimage")
-echo -e "  ${GREEN}✓${NC} AppImage (Tauri bundled)"
-
 echo ""
 
 
@@ -89,15 +86,6 @@ if [ ${
                 ;;
             rpm)
                 for f in "$BUNDLE_DIR/rpm/"*.rpm; do
-                    if [ -f "$f" ]; then
-                        cp "$f" "$OUT_DIR/"
-                        echo -e "  ${GREEN}✓${NC} $(basename "$f")"
-                        FOUND=$((FOUND + 1))
-                    fi
-                done
-                ;;
-            appimage)
-                for f in "$BUNDLE_DIR/appimage/"*.AppImage; do
                     if [ -f "$f" ]; then
                         cp "$f" "$OUT_DIR/"
                         echo -e "  ${GREEN}✓${NC} $(basename "$f")"
