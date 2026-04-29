@@ -118,7 +118,8 @@ The built binary and packages are written to `src-tauri/target/release/bundle/`.
 
 [![ko-fi](https://www.ko-fi.com/img/donate_sm.png)](https://ko-fi.com/blur009)
 
-You can also support the linux port by starring the repository and sharing it with friends. Thank you!
+## Support the linux port
+You can support the linux port by starring the repository and sharing it with friends. Thank you!
 
 ---
 
