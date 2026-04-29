@@ -41,7 +41,6 @@ fn round2(v: f64) -> f64 {
     (v * 100.0).round() / 100.0
 }
 
-// -- CSV read/write --
 
 fn read_all_runs() -> Result<Vec<RunRecord>, String> {
     let path = stats_file_path();
@@ -118,7 +117,6 @@ fn next_id(runs: &[RunRecord]) -> u64 {
     runs.iter().map(|r| r.id).max().unwrap_or(0) + 1
 }
 
-// -- Compaction --
 
 fn compact_runs(runs: &mut Vec<RunRecord>) {
     if runs.len() < MAX_NORMAL_RUNS {

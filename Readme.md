@@ -2,13 +2,40 @@
 
 # Blur Auto Clicker | Linux Port
 
-## Supports Wayland AND X11
+## Wayland-First Auto Clicker for Linux
+
+This port is built with **Wayland as a first-class citizen**. Most auto clickers on Linux only support X11 or break under native Wayland. This project aims to be the autoclicker that actually works on modern compositors.
 
 ## Why
 
 A lot of popular auto clickers like OP Auto Clicker and Speed Auto Clicker are inaccurate at higher speeds | setting 50 CPS might give you 40 or 60. This project aims for precision: click exactly at the CPS you set, even at high speeds.
 
 Performance is a core focus. RAM usage stays around 50 MB and is designed to never exceed 100 MB.
+
+---
+
+## Platform Support
+
+| Feature | X11 | Wayland (KDE / wlroots) | Notes |
+|---------|-----|------------------------|-------|
+| **Auto Clicking** | Full | Full | Wayland uses `uinput` (needs `input` group) |
+| **Corner / Edge Stop** | Full | Full | Uses cached monitor geometry from Tauri |
+| **Position Clicking** | Full | Limited | Absolute cursor move unavailable on pure Wayland |
+| **Always on Top** | Full | Limited | Pin works via `_NET_WM_STATE_ABOVE`; pure Wayland has no standard protocol |
+| **Pixel Predator** | Full | Full | KDE via KWin D-Bus; wlroots via `grim` |
+| **Cursor Position** | Full | Unavailable | No standard Wayland protocol for global cursor query |
+| **Overlay** | Full | Full | Uses Tauri-provided monitor bounds |
+
+### Running under XWayland
+
+If you are on a hybrid XWayland system (both `DISPLAY` and `WAYLAND_DISPLAY` are set), the app automatically forces `GDK_BACKEND=x11` so that window-manager features like Always on Top work reliably. The click backend will still use XTEST, which only affects XWayland windows.
+
+### Pure Wayland Requirements
+
+- `uinput` kernel module loaded
+- User in the `input` group (`sudo usermod -aG input $USER`, then log out and back in)
+- For **Pixel Predator on KDE**: no extra tools needed (uses KWin D-Bus)
+- For **Pixel Predator on wlroots**: `grim` must be installed
 
 ---
 
@@ -28,14 +55,21 @@ Simple Mode:
 Advanced Mode (includes all Simple Mode features plus):
 - Adjustable click timing (duty cycle)
 - Speed Range Mode (randomizes CPS within a range)
-- Corner and edge stopping (not fully implemented yet)
+- Corner and edge stopping (failsafe stop zones)
 - Click and Time limits (stop after a set number of clicks or elapsed time)
 - Double clicks
 - Position Clicking (pick a position | the mouse moves there and clicks)
 - Clicks adjustable to per Second, Minute, Hour, or Day
 
+Pixel Predator:
+- Scan a screen region for a target color
+- Configurable color tolerance
+- Click or alert when the color is found
+- Two-point region picker
+
 Other Features:
-- Click stats (total clicks, clicks per second, etc.) | not yet implemented on Linux
+- Click stats (total clicks, sessions, avg CPU)
+- Multi-monitor aware edge/corner detection
 
 ---
 

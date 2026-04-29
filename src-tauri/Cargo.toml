@@ -1,7 +1,7 @@
 [package]
 name = "BlurAutoClicker"
-version = "3.4.3"
-description = "BlurAutoClicker"
+version = "3.4.4"
+description = "BlurAutoClicker Linux"
 authors = ["Blur009"]
 edition = "2021"
 rust-version = "1.77.2"
@@ -49,3 +49,4 @@ winreg = "0.52"
 x11rb = { version = "0.13", features = ["xtest", "randr"] }
 evdev = "0.12"
 libc = "0.2"
+image = { version = "0.25", default-features = false, features = ["png"] }

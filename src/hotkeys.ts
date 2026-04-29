@@ -76,16 +76,16 @@ type LayoutMapLike = {
   get(code: string): string | undefined;
 };
 
-let layoutMapPromise: Promise<LayoutMapLike | null> | null = null;
+let layout_map_promise: Promise<LayoutMapLike | null> | null = null;
 
-function normalizeModifierToken(token: string): string | null {
+function normalize_modifier_token(token: string): string | null {
   return MODIFIER_ALIASES[token.trim().toLowerCase()] ?? null;
 }
 
-function normalizeNamedKey(key: string): string | null {
+function normalize_named_key(key: string): string | null {
   const lower = key.toLowerCase();
 
-  const keyMap: Record<string, string> = {
+  const key_map: Record<string, string> = {
     enter: "enter",
     tab: "tab",
     spacebar: "space",
@@ -140,10 +140,10 @@ function normalizeNamedKey(key: string): string | null {
     return lower;
   }
 
-  return keyMap[lower] ?? null;
+  return key_map[lower] ?? null;
 }
 
-function normalizeNumpadFromCode(
+function normalize_numpad_from_code(
   code: string | undefined,
   key: string,
   location: number | undefined,
@@ -159,19 +159,19 @@ function normalizeNumpadFromCode(
   return NUMPAD_LOCATION_KEY_MAP[key.toLowerCase()] ?? null;
 }
 
-function displayTokenFromStoredValue(
+function display_token_from_stored_value(
   token: string,
-  layoutMap: LayoutMapLike | null,
+  layout_map: LayoutMapLike | null,
 ): string {
   const trimmed = token.trim();
   if (!trimmed) return trimmed;
 
   if (trimmed === "IntlBackslash") {
-    return layoutMap?.get("IntlBackslash") ?? "<";
+    return layout_map?.get("IntlBackslash") ?? "<";
   }
 
   if (/^Key[A-Z]$/.test(trimmed)) {
-    const mapped = layoutMap?.get(trimmed);
+    const mapped = layout_map?.get(trimmed);
     if (mapped) return mapped;
     return trimmed.slice(3).toLowerCase();
   }
@@ -181,11 +181,11 @@ function displayTokenFromStoredValue(
   }
 
   if (NUMPAD_CODE_MAP[trimmed]) {
-    return displayTokenFromStoredValue(NUMPAD_CODE_MAP[trimmed], layoutMap);
+    return display_token_from_stored_value(NUMPAD_CODE_MAP[trimmed], layout_map);
   }
 
   const lower = trimmed.toLowerCase();
-  const namedDisplayMap: Record<string, string> = {
+  const named_display_map: Record<string, string> = {
     up: "Up",
     down: "Down",
     left: "Left",
@@ -227,16 +227,16 @@ function displayTokenFromStoredValue(
     numpadenter: "Num Enter",
   };
 
-  if (namedDisplayMap[lower]) {
-    return namedDisplayMap[lower];
+  if (named_display_map[lower]) {
+    return named_display_map[lower];
   }
 
   return trimmed;
 }
 
-function normalizeStoredMainKey(
+function normalize_stored_main_key(
   token: string,
-  layoutMap: LayoutMapLike | null,
+  layout_map: LayoutMapLike | null,
 ): string {
   const trimmed = token.trim();
   if (!trimmed) return trimmed;
@@ -246,7 +246,7 @@ function normalizeStoredMainKey(
   }
 
   if (/^Key[A-Z]$/.test(trimmed)) {
-    const mapped = layoutMap?.get(trimmed);
+    const mapped = layout_map?.get(trimmed);
     return mapped ? mapped.toLowerCase() : trimmed.slice(3).toLowerCase();
   }
 
@@ -259,8 +259,8 @@ function normalizeStoredMainKey(
   }
 
   const lower = trimmed.toLowerCase();
-  if (normalizeNamedKey(lower)?.startsWith("numpad")) {
-    return normalizeNamedKey(lower)!;
+  if (normalize_named_key(lower)?.startsWith("numpad")) {
+    return normalize_named_key(lower)!;
   }
 
   if (lower === "<" || lower === ">") {
@@ -271,29 +271,29 @@ function normalizeStoredMainKey(
     return SHIFTED_SYMBOL_BASE_MAP[trimmed];
   }
 
-  return normalizeNamedKey(trimmed) ?? lower;
+  return normalize_named_key(trimmed) ?? lower;
 }
 
-export async function getKeyboardLayoutMap(): Promise<LayoutMapLike | null> {
-  if (!layoutMapPromise) {
+export async function get_keyboard_layout_map(): Promise<LayoutMapLike | null> {
+  if (!layout_map_promise) {
     const keyboard = (navigator as Navigator & {
       keyboard?: { getLayoutMap?: () => Promise<LayoutMapLike> };
     }).keyboard;
 
-    layoutMapPromise = keyboard?.getLayoutMap
+    layout_map_promise = keyboard?.getLayoutMap
       ? keyboard.getLayoutMap().catch(() => null)
       : Promise.resolve(null);
   }
 
-  return layoutMapPromise;
+  return layout_map_promise;
 }
 
-export async function canonicalizeHotkeyForBackend(value: string): Promise<string> {
-  const layoutMap = await getKeyboardLayoutMap();
-  return canonicalizeHotkeyString(value, layoutMap);
+export async function canonicalize_hotkey_for_backend(value: string): Promise<string> {
+  const layout_map = await get_keyboard_layout_map();
+  return canonicalize_hotkey_string(value, layout_map);
 }
 
-export function captureHotkey(event: {
+export function capture_hotkey(event: {
   key: string;
   code?: string;
   location?: number;
@@ -307,13 +307,13 @@ export function captureHotkey(event: {
     return null;
   }
 
-  const mainKey =
-    normalizeNumpadFromCode(event.code, event.key, event.location) ??
+  const main_key =
+    normalize_numpad_from_code(event.code, event.key, event.location) ??
     (event.key === " " ? "space" : null) ??
-    normalizeNamedKey(event.key) ??
+    normalize_named_key(event.key) ??
     (SHIFTED_SYMBOL_BASE_MAP[event.key] ?? (event.key.length === 1 ? lower : null));
 
-  if (!mainKey) {
+  if (!main_key) {
     return null;
   }
 
@@ -322,11 +322,11 @@ export function captureHotkey(event: {
   if (event.altKey) parts.push("alt");
   if (event.shiftKey) parts.push("shift");
   if (event.metaKey) parts.push("super");
-  parts.push(mainKey);
+  parts.push(main_key);
   return parts.join("+");
 }
 
-export function captureMouseHotkey(
+export function capture_mouse_hotkey(
   event: {
     button: number;
     ctrlKey: boolean;
@@ -334,9 +334,9 @@ export function captureMouseHotkey(
     shiftKey: boolean;
     metaKey: boolean;
   },
-  clickerMouseButton?: string,
+  clicker_mouse_button?: string,
 ): string | null {
-  const mouseMap: Record<number, string> = {
+  const mouse_map: Record<number, string> = {
     0: "mouseleft",
     1: "mousemiddle",
     2: "mouseright",
@@ -344,17 +344,17 @@ export function captureMouseHotkey(
     4: "mouse5",
   };
 
-  const mainKey = mouseMap[event.button];
-  if (!mainKey) return null;
+  const main_key = mouse_map[event.button];
+  if (!main_key) return null;
 
-  if (clickerMouseButton === "Left" && mainKey === "mouseleft") return null;
-  if (clickerMouseButton === "Middle" && mainKey === "mousemiddle") return null;
-  if (clickerMouseButton === "Right" && mainKey === "mouseright") return null;
+  if (clicker_mouse_button === "Left" && main_key === "mouseleft") return null;
+  if (clicker_mouse_button === "Middle" && main_key === "mousemiddle") return null;
+  if (clicker_mouse_button === "Right" && main_key === "mouseright") return null;
 
   if (event.button === 0) {
-    const hasModifier =
+    const has_modifier =
       event.ctrlKey || event.altKey || event.shiftKey || event.metaKey;
-    if (!hasModifier) return null;
+    if (!has_modifier) return null;
   }
 
   const parts: string[] = [];
@@ -362,11 +362,11 @@ export function captureMouseHotkey(
   if (event.altKey) parts.push("alt");
   if (event.shiftKey) parts.push("shift");
   if (event.metaKey) parts.push("super");
-  parts.push(mainKey);
+  parts.push(main_key);
   return parts.join("+");
 }
 
-export function captureWheelHotkey(event: {
+export function capture_wheel_hotkey(event: {
   deltaY: number;
   ctrlKey: boolean;
   altKey: boolean;
@@ -375,27 +375,27 @@ export function captureWheelHotkey(event: {
 }): string | null {
   if (event.deltaY === 0) return null;
 
-  const mainKey = event.deltaY < 0 ? "scrollup" : "scrolldown";
+  const main_key = event.deltaY < 0 ? "scrollup" : "scrolldown";
 
   const parts: string[] = [];
   if (event.ctrlKey) parts.push("ctrl");
   if (event.altKey) parts.push("alt");
   if (event.shiftKey) parts.push("shift");
   if (event.metaKey) parts.push("super");
-  parts.push(mainKey);
+  parts.push(main_key);
   return parts.join("+");
 }
 
-export function formatHotkeyForDisplay(
+export function format_hotkey_for_display(
   value: string,
-  layoutMap: LayoutMapLike | null,
+  layout_map: LayoutMapLike | null,
 ): string {
   if (!value) return "Click and press keys";
 
   return value
     .split("+")
     .map((part) => {
-      const modifier = normalizeModifierToken(part);
+      const modifier = normalize_modifier_token(part);
       if (modifier) {
         if (modifier === "ctrl") return "Ctrl";
         if (modifier === "alt") return "Alt";
@@ -403,24 +403,24 @@ export function formatHotkeyForDisplay(
         return "Super";
       }
 
-      const display = displayTokenFromStoredValue(part, layoutMap);
+      const display = display_token_from_stored_value(part, layout_map);
       return display.length === 1 ? display.toUpperCase() : display;
     })
     .join(" + ");
 }
 
-function canonicalizeHotkeyString(
+function canonicalize_hotkey_string(
   value: string,
-  layoutMap: LayoutMapLike | null,
+  layout_map: LayoutMapLike | null,
 ): string {
   const parts: string[] = [];
-  let mainKey: string | null = null;
+  let main_key: string | null = null;
 
-  for (const rawPart of value.split("+")) {
-    const part = rawPart.trim();
+  for (const raw_part of value.split("+")) {
+    const part = raw_part.trim();
     if (!part) continue;
 
-    const modifier = normalizeModifierToken(part);
+    const modifier = normalize_modifier_token(part);
     if (modifier) {
       if (!parts.includes(modifier)) {
         parts.push(modifier);
@@ -428,11 +428,11 @@ function canonicalizeHotkeyString(
       continue;
     }
 
-    mainKey = normalizeStoredMainKey(part, layoutMap);
+    main_key = normalize_stored_main_key(part, layout_map);
   }
 
-  if (mainKey) {
-    parts.push(mainKey);
+  if (main_key) {
+    parts.push(main_key);
   }
 
   return parts.join("+");

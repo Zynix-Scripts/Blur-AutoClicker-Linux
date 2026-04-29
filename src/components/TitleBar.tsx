@@ -3,17 +3,17 @@ import { useEffect, useRef, useState } from "react";
 import type { Tab } from "../App";
 import "./TitleBar.css";
 
-const appWindow = getCurrentWindow();
-const DEFAULT_TITLE = "BlurAutoClicker";
+const app_window = getCurrentWindow();
+const DEFAULT_TITLE = "BlurAutoClicker Linux";
 
-const handleMinimize = async () => await appWindow.minimize();
+const handle_minimize = async () => await app_window.minimize();
 
 interface Props {
   tab: Tab;
-  setTab: (t: Tab) => void;
+  set_tab: (t: Tab) => void;
   running: boolean;
   stopReason?: string | null;
-  onRequestClose: () => Promise<void>;
+  on_request_close: () => Promise<void>;
 }
 
 type NavTab = Exclude<Tab, "settings">;
@@ -31,14 +31,14 @@ type TabItem = {
 
 type TitleViewState = {
   text: string;
-  flipClass: string;
-  isReason: boolean;
+  flip_class: string;
+  is_reason: boolean;
 };
 
 const DEFAULT_TITLE_STATE: TitleViewState = {
   text: DEFAULT_TITLE,
-  flipClass: "",
-  isReason: false,
+  flip_class: "",
+  is_reason: false,
 };
 
 const TAB_ITEMS: readonly TabItem[] = [
@@ -89,18 +89,18 @@ const TAB_ITEMS: readonly TabItem[] = [
 
 export default function TitleBar({
   tab,
-  setTab,
+  set_tab,
   running,
   stopReason,
-  onRequestClose,
+  on_request_close,
 }: Props) {
-  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
+  const [is_always_on_top, set_is_always_on_top] = useState(false);
 
-  const toggleAlwaysOnTop = async () => {
+  const toggle_always_on_top = async () => {
     try {
-      const newState = !isAlwaysOnTop;
-      await appWindow.setAlwaysOnTop(newState);
-      setIsAlwaysOnTop(newState);
+      const new_state = !is_always_on_top;
+      await app_window.setAlwaysOnTop(new_state);
+      set_is_always_on_top(new_state);
     } catch (err) {
       console.error("Failed to set always on top:", err);
     }
@@ -122,7 +122,7 @@ export default function TitleBar({
         <button
           className="settings-button"
           data-active={tab === "settings"}
-          onClick={() => setTab("settings")}
+          onClick={() => set_tab("settings")}
           style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
         >
           <svg
@@ -142,15 +142,15 @@ export default function TitleBar({
         </button>
         <div className="tab-icon-group">
           {TAB_ITEMS.map((item) => {
-            const isActive = tab === item.value;
+            const is_active = tab === item.value;
             return (
               <TabIconButton
                 key={item.value}
                 label={item.label}
-                active={isActive}
-                onClick={() => setTab(item.value)}
+                active={is_active}
+                onClick={() => set_tab(item.value)}
                 color={item.color}
-                icon={item.icon({ active: isActive })}
+                icon={item.icon({ active: is_active })}
               />
             );
           })}
@@ -172,9 +172,9 @@ export default function TitleBar({
         }
       >
         <WindowBtn
-          onClick={toggleAlwaysOnTop}
-          active={isAlwaysOnTop}
-          title={isAlwaysOnTop ? "Disable Always on Top" : "Enable Always on Top"}
+          onClick={toggle_always_on_top}
+          active={is_always_on_top}
+          title={is_always_on_top ? "Disable Always on Top" : "Enable Always on Top"}
           label={
             <svg
               width="16"
@@ -193,7 +193,7 @@ export default function TitleBar({
           }
         />
         <WindowBtn
-          onClick={handleMinimize}
+          onClick={handle_minimize}
           label={
             <svg width="10" height="2" viewBox="0 0 10 2" fill="none">
               <rect width="10" height="2" fill="currentColor" />
@@ -201,7 +201,7 @@ export default function TitleBar({
           }
         />
         <WindowBtn
-          onClick={onRequestClose}
+          onClick={on_request_close}
           danger
           label={
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -229,62 +229,62 @@ function AnimatedTitle({
   running,
   stopReason,
 }: Pick<Props, "running" | "stopReason">) {
-  const [titleState, setTitleState] = useState(DEFAULT_TITLE_STATE);
-  const frameIdsRef = useRef<number[]>([]);
-  const timeoutIdsRef = useRef<number[]>([]);
+  const [title_state, set_title_state] = useState(DEFAULT_TITLE_STATE);
+  const frame_ids_ref = useRef<number[]>([]);
+  const timeout_ids_ref = useRef<number[]>([]);
 
-  const clearScheduledWork = () => {
-    frameIdsRef.current.forEach((id) => window.cancelAnimationFrame(id));
-    timeoutIdsRef.current.forEach((id) => window.clearTimeout(id));
-    frameIdsRef.current = [];
-    timeoutIdsRef.current = [];
+  const clear_scheduled_work = () => {
+    frame_ids_ref.current.forEach((id) => window.cancelAnimationFrame(id));
+    timeout_ids_ref.current.forEach((id) => window.clearTimeout(id));
+    frame_ids_ref.current = [];
+    timeout_ids_ref.current = [];
   };
 
-  const queueFrame = (fn: () => void) => {
+  const queue_frame = (fn: () => void) => {
     const id = window.requestAnimationFrame(fn);
-    frameIdsRef.current.push(id);
+    frame_ids_ref.current.push(id);
   };
 
-  const queueDelay = (fn: () => void, ms: number) => {
+  const queue_delay = (fn: () => void, ms: number) => {
     const id = window.setTimeout(fn, ms);
-    timeoutIdsRef.current.push(id);
+    timeout_ids_ref.current.push(id);
   };
 
   useEffect(() => {
-    clearScheduledWork();
+    clear_scheduled_work();
 
     if (running || !stopReason) {
-      queueFrame(() => {
-        setTitleState(DEFAULT_TITLE_STATE);
+      queue_frame(() => {
+        set_title_state(DEFAULT_TITLE_STATE);
       });
-      return clearScheduledWork;
+      return clear_scheduled_work;
     }
 
-    queueFrame(() => {
-      setTitleState((current) => ({ ...current, flipClass: "flip-out" }));
-      queueDelay(() => {
-        setTitleState({
+    queue_frame(() => {
+      set_title_state((current) => ({ ...current, flip_class: "flip-out" }));
+      queue_delay(() => {
+        set_title_state({
           text: stopReason,
-          isReason: true,
-          flipClass: "",
+          is_reason: true,
+          flip_class: "",
         });
 
-        queueFrame(() => {
-          setTitleState((current) => ({ ...current, flipClass: "flip-in" }));
-          queueDelay(() => {
-            setTitleState((current) => ({ ...current, flipClass: "" }));
+        queue_frame(() => {
+          set_title_state((current) => ({ ...current, flip_class: "flip-in" }));
+          queue_delay(() => {
+            set_title_state((current) => ({ ...current, flip_class: "" }));
           }, 350);
         });
 
-        queueDelay(() => {
-          queueFrame(() => {
-            setTitleState((current) => ({ ...current, flipClass: "flip-out" }));
-            queueDelay(() => {
-              setTitleState(DEFAULT_TITLE_STATE);
-              queueFrame(() => {
-                setTitleState((current) => ({ ...current, flipClass: "flip-in" }));
-                queueDelay(() => {
-                  setTitleState((current) => ({ ...current, flipClass: "" }));
+        queue_delay(() => {
+          queue_frame(() => {
+            set_title_state((current) => ({ ...current, flip_class: "flip-out" }));
+            queue_delay(() => {
+              set_title_state(DEFAULT_TITLE_STATE);
+              queue_frame(() => {
+                set_title_state((current) => ({ ...current, flip_class: "flip-in" }));
+                queue_delay(() => {
+                  set_title_state((current) => ({ ...current, flip_class: "" }));
                 }, 350);
               });
             }, 350);
@@ -293,14 +293,14 @@ function AnimatedTitle({
       }, 400);
     });
 
-    return clearScheduledWork;
+    return clear_scheduled_work;
   }, [running, stopReason]);
 
   return (
     <span
-      className={`window-title title-flipper ${titleState.flipClass} ${titleState.isReason ? "is-reason" : ""}`}
+      className={`window-title title-flipper ${title_state.flip_class} ${title_state.is_reason ? "is-reason" : ""}`}
     >
-      {titleState.text}
+      {title_state.text}
     </span>
   );
 }

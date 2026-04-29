@@ -7,6 +7,7 @@ pub struct SystemDepsInfo {
     pub in_input_group: bool,
     pub uinput_module_loaded: bool,
     pub is_root: bool,
+    pub mouse_backend: String,
     pub warnings: Vec<String>,
 }
 
@@ -20,6 +21,7 @@ pub fn check_system_deps() -> SystemDepsInfo {
             in_input_group: true,
             uinput_module_loaded: true,
             is_root: false,
+            mouse_backend: "n/a".to_string(),
             warnings: vec![],
         }
     }
@@ -49,7 +51,17 @@ fn check_linux() -> SystemDepsInfo {
         .is_ok();
     let in_input_group = is_in_input_group();
 
+    let mouse_backend = crate::engine::mouse::linux_mouse_diagnostic();
+
     let mut warnings: Vec<String> = Vec::new();
+
+
+    if has_x11 {
+        log::info!("[SystemCheck] X11 detected - autoclicker uses XTEST (full feature set)");
+    }
+    if has_wayland && !has_x11 {
+        log::info!("[SystemCheck] Pure Wayland detected - autoclicker uses uinput (clicking works; position pick and always-on-top are limited)");
+    }
 
     if !has_x11 {
         if !uinput_module_loaded {
@@ -59,7 +71,7 @@ fn check_linux() -> SystemDepsInfo {
         } else if !uinput_accessible {
             if !in_input_group {
                 warnings.push(
-                    "User is not in the 'input' group — mouse clicking won't work on Wayland.\nFix: sudo usermod -aG input $USER\nThen log out and back in.".to_string(),
+                    "User is not in the 'input' group - mouse clicking won't work on Wayland.\nFix: sudo usermod -aG input $USER\nThen log out and back in.".to_string(),
                 );
             } else {
                 warnings.push(
@@ -69,12 +81,27 @@ fn check_linux() -> SystemDepsInfo {
         }
     }
 
+
+    if has_x11 && has_wayland {
+        warnings.push(
+            "XWayland detected: the X11 click backend only works on X11 windows. Native Wayland applications will not receive clicks.".to_string(),
+        );
+    }
+
+
+    if has_x11 && mouse_backend.contains("CONNECTION FAILED") {
+        warnings.push(
+            format!("X11 connection failed. Check your DISPLAY environment variable and ensure X11 authentication is configured."),
+        );
+    }
+
     SystemDepsInfo {
         display_server,
         uinput_accessible,
         in_input_group,
         uinput_module_loaded,
         is_root,
+        mouse_backend,
         warnings,
     }
 }

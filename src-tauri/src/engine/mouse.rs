@@ -34,7 +34,21 @@ impl VirtualScreenRect {
     }
 }
 
-// ─── Windows ─────────────────────────────────────────────────────────────────
+use std::sync::Mutex;
+
+static CACHED_MONITOR_RECTS: Mutex<Option<Vec<VirtualScreenRect>>> = Mutex::new(None);
+static CACHED_VIRTUAL_SCREEN_RECT: Mutex<Option<VirtualScreenRect>> = Mutex::new(None);
+
+pub fn set_cached_monitor_rects(rects: Vec<VirtualScreenRect>) {
+    let mut guard = CACHED_MONITOR_RECTS.lock().unwrap();
+    *guard = Some(rects);
+}
+
+pub fn set_cached_virtual_screen_rect(rect: VirtualScreenRect) {
+    let mut guard = CACHED_VIRTUAL_SCREEN_RECT.lock().unwrap();
+    *guard = Some(rect);
+}
+
 
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
@@ -169,7 +183,6 @@ pub fn get_button_flags(button: i32) -> (u32, u32) {
     }
 }
 
-// ─── Linux ───────────────────────────────────────────────────────────────────
 
 #[cfg(target_os = "linux")]
 mod linux {
@@ -177,7 +190,7 @@ mod linux {
         std::env::var_os("DISPLAY").is_some()
     }
 
-    // ── X11 backend (XTest + WarpPointer + RandR) ──────────────────────────
+
 
     pub mod x11 {
         use std::sync::OnceLock;
@@ -189,27 +202,46 @@ mod linux {
         struct State {
             conn: RustConnection,
             root: u32,
+            screen_num: usize,
         }
 
         static STATE: OnceLock<Option<State>> = OnceLock::new();
 
         fn get() -> Option<&'static State> {
             STATE.get_or_init(|| {
-                let (conn, snum) = x11rb::connect(None).ok()?;
-                let root = conn.setup().roots[snum].root;
-                Some(State { conn, root })
+                match x11rb::connect(None) {
+                    Ok((conn, snum)) => {
+                        let root = conn.setup().roots[snum].root;
+                        Some(State { conn, root, screen_num: snum })
+                    }
+                    Err(e) => {
+                        log::error!("[x11] Failed to connect to X server (DISPLAY={:?}): {e}", std::env::var_os("DISPLAY"));
+                        None
+                    }
+                }
             }).as_ref()
         }
 
         pub fn cursor_pos() -> Option<(i32, i32)> {
             let s = get()?;
-            let r = s.conn.query_pointer(s.root).ok()?.reply().ok()?;
-            Some((r.root_x as i32, r.root_y as i32))
+            match s.conn.query_pointer(s.root) {
+                Ok(cookie) => match cookie.reply() {
+                    Ok(r) => Some((r.root_x as i32, r.root_y as i32)),
+                    Err(e) => {
+                        log::error!("[x11] query_pointer reply failed: {e:?}");
+                        None
+                    }
+                },
+                Err(e) => {
+                    log::error!("[x11] query_pointer request failed: {e:?}");
+                    None
+                }
+            }
         }
 
         pub fn virtual_screen() -> Option<super::super::VirtualScreenRect> {
             let s = get()?;
-            let screen = &s.conn.setup().roots[0];
+            let screen = &s.conn.setup().roots[s.screen_num];
             Some(super::super::VirtualScreenRect::new(
                 0, 0,
                 screen.width_in_pixels as i32,
@@ -239,13 +271,23 @@ mod linux {
         }
 
         pub fn move_cursor(x: i32, y: i32) {
-            let Some(s) = get() else { return };
-            let _ = s.conn.warp_pointer(0u32, s.root, 0, 0, 0, 0, x as i16, y as i16);
-            let _ = s.conn.flush();
+            let Some(s) = get() else {
+                log::error!("[x11] Cannot move cursor: no X11 connection available");
+                return;
+            };
+            if let Err(e) = s.conn.warp_pointer(0u32, s.root, 0, 0, 0, 0, x as i16, y as i16) {
+                log::error!("[x11] warp_pointer request failed: {e:?}");
+            }
+            if let Err(e) = s.conn.flush() {
+                log::error!("[x11] flush failed: {e:?}");
+            }
         }
 
         pub fn send_button(flags: u32) {
-            let Some(s) = get() else { return };
+            let Some(s) = get() else {
+                log::error!("[x11] Cannot send button: no X11 connection available");
+                return;
+            };
             let (button, is_down) = super::decode_linux_flag(flags);
             let event_type: u8 = if is_down { 4 } else { 5 };
             let x11_btn: u8 = match button {
@@ -253,12 +295,16 @@ mod linux {
                 3 => 2,
                 _ => 1,
             };
-            let _ = s.conn.xtest_fake_input(event_type, x11_btn, 0, s.root, 0, 0, 0);
-            let _ = s.conn.flush();
+            if let Err(e) = s.conn.xtest_fake_input(event_type, x11_btn, 0, s.root, 0, 0, 0) {
+                log::error!("[x11] xtest_fake_input request failed: {e:?}");
+            }
+            if let Err(e) = s.conn.flush() {
+                log::error!("[x11] Connection flush failed: {e:?}");
+            }
         }
     }
 
-    // ── uinput backend (Wayland) ───────────────────────────────────────────
+
 
     pub mod uinput {
         use std::sync::{Mutex, OnceLock};
@@ -269,18 +315,32 @@ mod linux {
 
         fn get() -> Option<&'static Mutex<VirtualDevice>> {
             DEVICE.get_or_init(|| {
-                let dev = evdev::uinput::VirtualDeviceBuilder::new().ok()?
+                let builder = match evdev::uinput::VirtualDeviceBuilder::new() {
+                    Ok(b) => b,
+                    Err(e) => {
+                        log::error!("[uinput] Failed to open /dev/uinput: {e}. Make sure the uinput module is loaded and your user is in the 'input' group.");
+                        return None;
+                    }
+                };
+                let dev = match builder
                     .name("blur-autoclicker-mouse")
                     .with_keys(&AttributeSet::from_iter([
                         Key::BTN_LEFT,
                         Key::BTN_RIGHT,
                         Key::BTN_MIDDLE,
-                    ])).ok()?
-                    .with_relative_axes(&AttributeSet::from_iter([
+                    ]))
+                    .and_then(|b| b.with_relative_axes(&AttributeSet::from_iter([
                         RelativeAxisType::REL_X,
                         RelativeAxisType::REL_Y,
-                    ])).ok()?
-                    .build().ok()?;
+                    ])))
+                    .and_then(|b| b.build())
+                {
+                    Ok(d) => d,
+                    Err(e) => {
+                        log::error!("[uinput] Failed to build virtual device: {e}");
+                        return None;
+                    }
+                };
                 Some(Mutex::new(dev))
             }).as_ref()
         }
@@ -291,10 +351,13 @@ mod linux {
 
         pub fn send_button(flags: u32) {
             let Some(dev_lock) = get() else {
-                log::error!("[uinput] device unavailable — is uinput module loaded and user in 'input' group?");
+                log::error!("[uinput] Cannot send button: virtual device unavailable - is uinput module loaded and user in 'input' group?");
                 return;
             };
-            let Ok(mut dev) = dev_lock.lock() else { return };
+            let Ok(mut dev) = dev_lock.lock() else {
+                log::error!("[uinput] Failed to lock virtual device mutex");
+                return;
+            };
             let (button, is_down) = super::decode_linux_flag(flags);
             let key = match button {
                 2 => Key::BTN_RIGHT,
@@ -302,10 +365,12 @@ mod linux {
                 _ => Key::BTN_LEFT,
             };
             let value: i32 = if is_down { 1 } else { 0 };
-            let _ = dev.emit(&[
+            if let Err(e) = dev.emit(&[
                 InputEvent::new(EventType::KEY, key.code(), value),
                 InputEvent::new(EventType::SYNCHRONIZATION, 0, 0),
-            ]);
+            ]) {
+                log::error!("[uinput] emit failed: {e}");
+            }
         }
 
         #[allow(dead_code)]
@@ -320,7 +385,7 @@ mod linux {
         }
     }
 
-    // flag encoding: high nibble = button (1=left,2=right,3=middle), low bit = is_down
+
     pub const LEFT_DOWN: u32 = 0x11;
     pub const LEFT_UP: u32 = 0x10;
     pub const RIGHT_DOWN: u32 = 0x21;
@@ -344,6 +409,43 @@ pub fn uinput_available() -> bool {
 }
 
 #[cfg(target_os = "linux")]
+pub fn linux_mouse_diagnostic() -> String {
+    if linux::use_x11() {
+        match x11rb::connect(None) {
+            Ok((conn, _)) => {
+                use x11rb::connection::RequestConnection;
+                let xtest_ok = conn.extension_information(x11rb::protocol::xtest::X11_EXTENSION_NAME).ok().flatten().is_some();
+                let mut msg = format!("X11 backend (DISPLAY={:?})", std::env::var_os("DISPLAY"));
+                if xtest_ok {
+                    msg.push_str(" - XTEST extension available");
+                } else {
+                    msg.push_str(" - XTEST extension MISSING");
+                }
+
+                if std::env::var_os("WAYLAND_DISPLAY").is_some() {
+                    msg.push_str(" | WARNING: running under XWayland - clicks only affect X11 windows, not native Wayland apps");
+                }
+                msg
+            }
+            Err(e) => {
+                format!("X11 backend (DISPLAY={:?}) - CONNECTION FAILED: {e}", std::env::var_os("DISPLAY"))
+            }
+        }
+    } else {
+        let uinput_path = std::path::Path::new("/dev/uinput");
+        let exists = uinput_path.exists();
+        let writable = std::fs::OpenOptions::new().write(true).open(uinput_path).is_ok();
+        if exists && writable {
+            format!("Wayland uinput backend - /dev/uinput is accessible")
+        } else if exists {
+            format!("Wayland uinput backend - /dev/uinput exists but is NOT writable (user not in 'input' group?)")
+        } else {
+            format!("Wayland uinput backend - /dev/uinput does not exist (uinput module not loaded?)")
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
 pub fn current_cursor_position() -> Option<(i32, i32)> {
     if linux::use_x11() {
         linux::x11::cursor_pos()
@@ -360,6 +462,10 @@ pub fn current_virtual_screen_rect() -> Option<VirtualScreenRect> {
     } else {
         None
     }
+    .or_else(|| {
+        let guard = CACHED_VIRTUAL_SCREEN_RECT.lock().unwrap();
+        guard.clone()
+    })
 }
 
 #[cfg(target_os = "linux")]
@@ -369,6 +475,10 @@ pub fn current_monitor_rects() -> Option<Vec<VirtualScreenRect>> {
     } else {
         current_virtual_screen_rect().map(|r| vec![r])
     }
+    .or_else(|| {
+        let guard = CACHED_MONITOR_RECTS.lock().unwrap();
+        guard.clone()
+    })
 }
 
 #[cfg(target_os = "linux")]
@@ -409,7 +519,6 @@ pub fn get_button_flags(button: i32) -> (u32, u32) {
     }
 }
 
-// ─── Shared (all platforms) ───────────────────────────────────────────────────
 
 #[inline]
 pub fn get_cursor_pos() -> (i32, i32) {

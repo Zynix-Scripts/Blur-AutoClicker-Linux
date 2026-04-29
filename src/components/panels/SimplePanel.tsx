@@ -2,8 +2,8 @@ import type { Settings } from "../../store";
 import HotkeyCaptureInput from "../HotkeyCaptureInput";
 import "./Modes.css";
 import "./SimplePanel.css";
-// I HATE MAKING UI, FUCK UI DESIGN IN CODE, WHY CANT I JUST PHOTOSHOP THIS SHIT
-// ahem, made with love :3
+
+
 interface SimplePanelProps {
   settings: Settings;
   update: (patch: Partial<Settings>) => void;
@@ -20,36 +20,36 @@ const MODE_OPTIONS = ["Toggle", "Hold"] as const;
 const MOUSE_BUTTON_OPTIONS = ["Left", "Middle", "Right"] as const;
 
 export default function SimplePanel({ settings, update }: SimplePanelProps) {
-  const normalizeRaw = (raw: string) => raw.replace(/^0+(?=\d)/, "");
+  const normalize_raw = (raw: string) => raw.replace(/^0+(?=\d)/, "");
 
-  const parseRawNumber = (raw: string) => {
-    const normalized = normalizeRaw(raw);
+  const parse_raw_number = (raw: string) => {
+    const normalized = normalize_raw(raw);
     return normalized === "" ? 0 : Number(normalized);
   };
 
   const clamp = (value: number, min: number, max: number) =>
     Math.min(max, Math.max(min, value));
-  const dynamicChWidth = (value: number, min = 1, max = 3) =>
+  const dynamic_ch_width = (value: number, min = 1, max = 3) =>
     `${clamp(String(value).length, min, max)}ch`;
-  const isShortHotkey = (() => {
+  const is_short_hotkey = (() => {
     const raw = settings.hotkey.trim();
     if (!raw) return true;
     const parts = raw.split("+").filter(Boolean);
     return parts.length <= 2 && raw.length <= 10;
   })();
 
-  const cycleOption = <T extends string>(
+  const cycle_option = <T extends string>(
     options: readonly T[],
     current: T,
     direction: 1 | -1,
   ): T => {
-    const currentIndex = options.indexOf(current);
-    const safeIndex = currentIndex === -1 ? 0 : currentIndex;
-    const nextIndex = (safeIndex + direction + options.length) % options.length;
-    return options[nextIndex];
+    const current_index = options.indexOf(current);
+    const safe_index = current_index === -1 ? 0 : current_index;
+    const next_index = (safe_index + direction + options.length) % options.length;
+    return options[next_index];
   };
 
-  const cycleWithClick = (
+  const cycle_with_click = (
     e: React.MouseEvent<HTMLButtonElement>,
     apply: () => void,
   ) => {
@@ -58,7 +58,7 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
     apply();
   };
 
-  const handleWheelStep = (
+  const handle_wheel_step = (
     e: React.WheelEvent<HTMLInputElement>,
     current: number,
     min: number,
@@ -83,23 +83,23 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
             min={1}
             max={500}
             onChange={(e) => {
-              const normalized = normalizeRaw(e.target.value);
+              const normalized = normalize_raw(e.target.value);
               if (normalized !== e.target.value) {
                 e.target.value = normalized;
               }
-              update({ clickSpeed: parseRawNumber(normalized) });
+              update({ clickSpeed: parse_raw_number(normalized) });
             }}
             onBlur={(e) => {
-              const normalized = normalizeRaw(e.target.value);
+              const normalized = normalize_raw(e.target.value);
               if (normalized !== e.target.value) {
                 e.target.value = normalized;
               }
               update({
-                clickSpeed: clamp(parseRawNumber(normalized), 1, 500),
+                clickSpeed: clamp(parse_raw_number(normalized), 1, 500),
               });
             }}
             onWheel={(e) =>
-              handleWheelStep(e, settings.clickSpeed, 1, 500, (next) =>
+              handle_wheel_step(e, settings.clickSpeed, 1, 500, (next) =>
                 update({ clickSpeed: next }),
               )
             }
@@ -111,9 +111,9 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
             title="Change Click Interval"
             style={{ display: "flex", alignItems: "center", gap: "4px" }}
             onClick={(e) =>
-              cycleWithClick(e, () =>
+              cycle_with_click(e, () =>
                 update({
-                  clickInterval: cycleOption(
+                  clickInterval: cycle_option(
                     INTERVAL_OPTIONS.map((o) => o.value),
                     settings.clickInterval,
                     1,
@@ -122,9 +122,9 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
               )
             }
             onContextMenu={(e) =>
-              cycleWithClick(e, () =>
+              cycle_with_click(e, () =>
                 update({
-                  clickInterval: cycleOption(
+                  clickInterval: cycle_option(
                     INTERVAL_OPTIONS.map((o) => o.value),
                     settings.clickInterval,
                     -1,
@@ -156,7 +156,7 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
           <div className="faderbox">
             <HotkeyCaptureInput
               className="simple-hotkey-input"
-              style={{ width: isShortHotkey ? "90px" : "130px" }}
+              style={{ width: is_short_hotkey ? "90px" : "130px" }}
               value={settings.hotkey}
               onChange={(hotkey) => update({ hotkey })}
             />
@@ -188,16 +188,16 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
             className="simple-cycle-btn"
             title="Switch between hotkey Toggle and Hold mode"
             onClick={(e) =>
-              cycleWithClick(e, () =>
+              cycle_with_click(e, () =>
                 update({
-                  mode: cycleOption(MODE_OPTIONS, settings.mode, 1),
+                  mode: cycle_option(MODE_OPTIONS, settings.mode, 1),
                 }),
               )
             }
             onContextMenu={(e) =>
-              cycleWithClick(e, () =>
+              cycle_with_click(e, () =>
                 update({
-                  mode: cycleOption(MODE_OPTIONS, settings.mode, -1),
+                  mode: cycle_option(MODE_OPTIONS, settings.mode, -1),
                 }),
               )
             }
@@ -214,9 +214,9 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
             className="simple-cycle-btn"
             title="Select which mouse button gets clicked"
             onClick={(e) =>
-              cycleWithClick(e, () =>
+              cycle_with_click(e, () =>
                 update({
-                  mouseButton: cycleOption(
+                  mouseButton: cycle_option(
                     MOUSE_BUTTON_OPTIONS,
                     settings.mouseButton,
                     1,
@@ -225,9 +225,9 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
               )
             }
             onContextMenu={(e) =>
-              cycleWithClick(e, () =>
+              cycle_with_click(e, () =>
                 update({
-                  mouseButton: cycleOption(
+                  mouseButton: cycle_option(
                     MOUSE_BUTTON_OPTIONS,
                     settings.mouseButton,
                     -1,
@@ -254,30 +254,30 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
             title="How long the mouse button gets held down during each click"
             className="simple-inline-input numbervalue"
             style={{
-              width: dynamicChWidth(settings.dutyCycle),
+              width: dynamic_ch_width(settings.dutyCycle),
               minWidth: "1ch",
             }}
             value={settings.dutyCycle}
             min={0}
             max={100}
             onChange={(e) => {
-              const normalized = normalizeRaw(e.target.value);
+              const normalized = normalize_raw(e.target.value);
               if (normalized !== e.target.value) {
                 e.target.value = normalized;
               }
-              update({ dutyCycle: parseRawNumber(normalized) });
+              update({ dutyCycle: parse_raw_number(normalized) });
             }}
             onBlur={(e) => {
-              const normalized = normalizeRaw(e.target.value);
+              const normalized = normalize_raw(e.target.value);
               if (normalized !== e.target.value) {
                 e.target.value = normalized;
               }
               update({
-                dutyCycle: clamp(parseRawNumber(normalized), 0, 100),
+                dutyCycle: clamp(parse_raw_number(normalized), 0, 100),
               });
             }}
             onWheel={(e) =>
-              handleWheelStep(e, settings.dutyCycle, 0, 100, (next) =>
+              handle_wheel_step(e, settings.dutyCycle, 0, 100, (next) =>
                 update({ dutyCycle: next }),
               )
             }
@@ -293,30 +293,30 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
             title="Randomly changes clicks speed in % range of set CPS"
             className="simple-inline-input numbervalue"
             style={{
-              width: dynamicChWidth(settings.speedVariation),
+              width: dynamic_ch_width(settings.speedVariation),
               minWidth: "1ch",
             }}
             value={settings.speedVariation}
             min={0}
             max={200}
             onChange={(e) => {
-              const normalized = normalizeRaw(e.target.value);
+              const normalized = normalize_raw(e.target.value);
               if (normalized !== e.target.value) {
                 e.target.value = normalized;
               }
-              update({ speedVariation: parseRawNumber(normalized) });
+              update({ speedVariation: parse_raw_number(normalized) });
             }}
             onBlur={(e) => {
-              const normalized = normalizeRaw(e.target.value);
+              const normalized = normalize_raw(e.target.value);
               if (normalized !== e.target.value) {
                 e.target.value = normalized;
               }
               update({
-                speedVariation: clamp(parseRawNumber(normalized), 0, 200),
+                speedVariation: clamp(parse_raw_number(normalized), 0, 200),
               });
             }}
             onWheel={(e) =>
-              handleWheelStep(e, settings.speedVariation, 0, 200, (next) =>
+              handle_wheel_step(e, settings.speedVariation, 0, 200, (next) =>
                 update({ speedVariation: next }),
               )
             }

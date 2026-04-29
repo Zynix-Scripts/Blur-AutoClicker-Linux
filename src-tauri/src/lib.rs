@@ -38,13 +38,11 @@ pub fn run() {
             settings_initialized: AtomicBool::new(false),
         })
         .setup(|app| {
-            if cfg!(debug_assertions) {
-                let _ = app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                );
-            }
+            let _ = app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Info)
+                    .build(),
+            );
 
             let auto_hide_handle = app.handle().clone();
             std::thread::spawn(move || {
@@ -76,6 +74,43 @@ pub fn run() {
                 }
             });
 
+
+            if let Some(window) = app.get_webview_window("main") {
+                if let Ok(monitors) = window.available_monitors() {
+                    let monitor_count = monitors.len();
+                    let rects: Vec<crate::engine::mouse::VirtualScreenRect> = monitors
+                        .into_iter()
+                        .map(|m| {
+                            let pos = m.position();
+                            let size = m.size();
+                            crate::engine::mouse::VirtualScreenRect::new(
+                                pos.x as i32,
+                                pos.y as i32,
+                                size.width as i32,
+                                size.height as i32,
+                            )
+                        })
+                        .collect();
+
+                    if !rects.is_empty() {
+                        let left = rects.iter().map(|r| r.left).min().unwrap_or(0);
+                        let top = rects.iter().map(|r| r.top).min().unwrap_or(0);
+                        let right = rects.iter().map(|r| r.right()).max().unwrap_or(0);
+                        let bottom = rects.iter().map(|r| r.bottom()).max().unwrap_or(0);
+                        crate::engine::mouse::set_cached_virtual_screen_rect(
+                            crate::engine::mouse::VirtualScreenRect::new(
+                                left,
+                                top,
+                                right - left,
+                                bottom - top,
+                            ),
+                        );
+                    }
+                    crate::engine::mouse::set_cached_monitor_rects(rects.clone());
+                    log::info!("[Init] Cached {} monitor(s) from Tauri", monitor_count);
+                }
+            }
+
             let initial_hotkey = {
                 let state = app.state::<ClickerState>();
                 let x = state.settings.lock().unwrap().hotkey.clone();
@@ -92,6 +127,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             ui_commands::set_webview_zoom,
+            ui_commands::set_always_on_top_linux,
             ui_commands::get_text_scale_factor,
             ui_commands::start_clicker,
             ui_commands::stop_clicker,

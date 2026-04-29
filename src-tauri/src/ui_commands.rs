@@ -48,9 +48,72 @@ pub fn set_webview_zoom(window: tauri::Window, factor: f64) -> Result<(), String
 }
 
 #[tauri::command]
+pub fn set_always_on_top_linux(window: tauri::Window, enabled: bool) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        let handle = window.window_handle().map_err(|e| e.to_string())?;
+        let window_id = match handle.as_raw() {
+            RawWindowHandle::Xlib(h) => h.window as u32,
+            RawWindowHandle::Xcb(h) => h.window.get() as u32,
+            _ => {
+                return Err(
+                    "Always on Top is not supported on pure Wayland. \
+                     Try running with GDK_BACKEND=x11 or configure a compositor window rule."
+                        .to_string(),
+                );
+            }
+        };
+
+        use x11rb::connection::Connection;
+        use x11rb::protocol::xproto::{
+            ClientMessageData, ClientMessageEvent, ConnectionExt, EventMask,
+        };
+
+        let (conn, screen_num) = x11rb::connect(None).map_err(|e| e.to_string())?;
+        let screen = &conn.setup().roots[screen_num];
+        let root = screen.root;
+
+        let wm_state = conn
+            .intern_atom(false, b"_NET_WM_STATE")
+            .map_err(|e| e.to_string())?
+            .reply()
+            .map_err(|e| e.to_string())?
+            .atom;
+        let wm_state_above = conn
+            .intern_atom(false, b"_NET_WM_STATE_ABOVE")
+            .map_err(|e| e.to_string())?
+            .reply()
+            .map_err(|e| e.to_string())?
+            .atom;
+
+        let data = ClientMessageData::from([
+            if enabled { 1u32 } else { 0u32 },
+            wm_state_above,
+            0,
+            0,
+            0,
+        ]);
+
+        let event = ClientMessageEvent::new(32, window_id, wm_state, data);
+
+        conn.send_event(
+            false,
+            root,
+            EventMask::SUBSTRUCTURE_NOTIFY | EventMask::SUBSTRUCTURE_REDIRECT,
+            event,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.flush().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub fn start_clicker(app: AppHandle) -> Result<ClickerStatusPayload, String> {
     start_clicker_inner(&app)
 }
+
 
 #[tauri::command]
 pub fn stop_clicker(app: AppHandle) -> Result<ClickerStatusPayload, String> {
@@ -91,7 +154,7 @@ pub fn update_settings(
 
     if !was_initialized {
         state.settings_initialized.store(true, Ordering::SeqCst);
-        log::info!("[Settings] First update_settings — initialized, skipping overlay");
+        log::info!("[Settings] First update_settings - initialized, skipping overlay");
         return Ok(settings);
     }
 

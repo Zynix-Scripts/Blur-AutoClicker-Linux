@@ -39,7 +39,7 @@ pub fn init_overlay(app: &AppHandle) -> Result<(), String> {
         let _ = sync_overlay_bounds(&window)?;
     }
 
-    log::info!("[Overlay] Init complete — window configured but hidden");
+    log::info!("[Overlay] Init complete - window configured but hidden");
     Ok(())
 }
 

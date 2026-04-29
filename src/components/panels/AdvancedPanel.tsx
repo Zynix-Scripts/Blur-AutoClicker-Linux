@@ -4,21 +4,21 @@ import AdvancedPanelLayout from "./AdvancedPanelLayout";
 interface Props {
   settings: Settings;
   update: (patch: Partial<Settings>) => void;
-  onPickPosition: () => Promise<void>;
+  on_pick_position: () => Promise<void>;
 }
 
 export default function AdvancedPanel({
   settings,
   update,
-  onPickPosition,
+  on_pick_position,
 }: Props) {
   return (
     <AdvancedPanelLayout
       settings={settings}
       update={update}
-      onPickPosition={onPickPosition}
+      on_pick_position={on_pick_position}
       compact={false}
-      showExplanations
+      show_explanations
     />
   );
 }

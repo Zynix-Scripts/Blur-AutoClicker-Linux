@@ -405,7 +405,6 @@ fn modifiers_match(
     true
 }
 
-// ─── Windows hotkey implementation ───────────────────────────────────────────
 
 #[cfg(target_os = "windows")]
 fn is_main_key_active_windows(vk: i32) -> bool {
@@ -495,7 +494,6 @@ unsafe extern "system" fn mouse_hook_proc(code: i32, w_param: usize, l_param: is
     CallNextHookEx(0, code, w_param, l_param)
 }
 
-// ─── Linux hotkey implementation ──────────────────────────────────────────────
 
 #[cfg(target_os = "linux")]
 pub fn start_scroll_hook() {
@@ -510,7 +508,7 @@ mod linux_hotkeys {
     use std::sync::{OnceLock, RwLock};
     use std::time::Duration;
 
-    // ── Shared pressed-keys state (evdev background thread) ──────────────
+
 
     static PRESSED_KEYS: OnceLock<RwLock<std::collections::HashSet<Key>>> = OnceLock::new();
 
@@ -527,37 +525,63 @@ mod linux_hotkeys {
                 }
             };
 
+            let mut open_errors: Vec<(std::path::PathBuf, std::io::Error)> = Vec::new();
+
             let mut kbd_devs: Vec<evdev::Device> = evdev::enumerate()
                 .filter_map(|(path, _)| {
-                    let dev = evdev::Device::open(&path).ok()?;
-                    let has_keys = dev
-                        .supported_keys()
-                        .map(|k| k.contains(Key::KEY_A))
-                        .unwrap_or(false);
-                    if has_keys {
-                        set_nonblock(&dev);
-                        Some(dev)
-                    } else {
-                        None
+                    match evdev::Device::open(&path) {
+                        Ok(dev) => {
+                            let has_keys = dev
+                                .supported_keys()
+                                .map(|k| k.contains(Key::KEY_A))
+                                .unwrap_or(false);
+                            if has_keys {
+                                set_nonblock(&dev);
+                                Some(dev)
+                            } else {
+                                None
+                            }
+                        }
+                        Err(e) => {
+                            open_errors.push((path, e));
+                            None
+                        }
                     }
                 })
                 .collect();
 
             let mut mouse_devs: Vec<evdev::Device> = evdev::enumerate()
                 .filter_map(|(path, _)| {
-                    let dev = evdev::Device::open(&path).ok()?;
-                    let has_wheel = dev
-                        .supported_relative_axes()
-                        .map(|a| a.contains(RelativeAxisType::REL_WHEEL))
-                        .unwrap_or(false);
-                    if has_wheel {
-                        set_nonblock(&dev);
-                        Some(dev)
-                    } else {
-                        None
+                    match evdev::Device::open(&path) {
+                        Ok(dev) => {
+                            let has_wheel = dev
+                                .supported_relative_axes()
+                                .map(|a| a.contains(RelativeAxisType::REL_WHEEL))
+                                .unwrap_or(false);
+                            if has_wheel {
+                                set_nonblock(&dev);
+                                Some(dev)
+                            } else {
+                                None
+                            }
+                        }
+                        Err(e) => {
+                            open_errors.push((path, e));
+                            None
+                        }
                     }
                 })
                 .collect();
+
+            if kbd_devs.is_empty() && mouse_devs.is_empty() {
+                if open_errors.iter().any(|(_, e)| e.kind() == std::io::ErrorKind::PermissionDenied) {
+                    log::error!("[hotkeys] No evdev devices accessible. Make sure your user is in the 'input' group (sudo usermod -aG input $USER) and log out/back in.");
+                } else {
+                    log::warn!("[hotkeys] No keyboard or mouse evdev devices found.");
+                }
+            } else {
+                log::info!("[hotkeys] Opened {} keyboard and {} mouse evdev devices.", kbd_devs.len(), mouse_devs.len());
+            }
 
             loop {
                 for dev in &mut kbd_devs {
@@ -773,7 +797,7 @@ mod linux_hotkeys {
             _ => {}
         }
 
-        // Mouse button hotkeys
+
         match token {
             "mouseleft" => return is_evdev_key_pressed(Key::BTN_LEFT),
             "mouseright" => return is_evdev_key_pressed(Key::BTN_RIGHT),
@@ -791,7 +815,6 @@ mod linux_hotkeys {
     }
 }
 
-// ─── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
-  captureHotkey,
-  captureMouseHotkey,
-  captureWheelHotkey,
-  formatHotkeyForDisplay,
-  getKeyboardLayoutMap,
+  capture_hotkey,
+  capture_mouse_hotkey,
+  capture_wheel_hotkey,
+  format_hotkey_for_display,
+  get_keyboard_layout_map,
 } from "../hotkeys";
 
 interface Props {
@@ -21,16 +21,16 @@ export default function HotkeyCaptureInput({
   className,
   style,
 }: Props) {
-  const [listening, setListening] = useState(false);
-  const [layoutMap, setLayoutMap] =
-    useState<Awaited<ReturnType<typeof getKeyboardLayoutMap>>>(null);
+  const [listening, set_listening] = useState(false);
+  const [layout_map, set_layout_map] =
+    useState<Awaited<ReturnType<typeof get_keyboard_layout_map>>>(null);
 
   useEffect(() => {
     let active = true;
 
-    getKeyboardLayoutMap().then((map) => {
+    get_keyboard_layout_map().then((map) => {
       if (active) {
-        setLayoutMap(map);
+        set_layout_map(map);
       }
     });
 
@@ -53,28 +53,28 @@ export default function HotkeyCaptureInput({
     };
   }, [listening]);
 
-  const displayText = useMemo(
+  const display_text = useMemo(
     () =>
-      listening ? "Press keys..." : formatHotkeyForDisplay(value, layoutMap),
-    [layoutMap, listening, value],
+      listening ? "Press keys..." : format_hotkey_for_display(value, layout_map),
+    [layout_map, listening, value],
   );
 
-  const acceptHotkey = (
-    nextHotkey: string | null,
+  const accept_hotkey = (
+    next_hotkey: string | null,
     target: HTMLInputElement,
   ) => {
-    if (!nextHotkey) return;
-    onChange(nextHotkey);
-    setListening(false);
+    if (!next_hotkey) return;
+    onChange(next_hotkey);
+    set_listening(false);
     target.blur();
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handle_key_down = (event: React.KeyboardEvent<HTMLInputElement>) => {
     event.preventDefault();
     event.stopPropagation();
 
     if (event.key === "Escape") {
-      setListening(false);
+      set_listening(false);
       event.currentTarget.blur();
       return;
     }
@@ -87,13 +87,13 @@ export default function HotkeyCaptureInput({
       !event.metaKey
     ) {
       onChange("");
-      setListening(false);
+      set_listening(false);
       event.currentTarget.blur();
       return;
     }
 
-    acceptHotkey(
-      captureHotkey({
+    accept_hotkey(
+      capture_hotkey({
         key: event.key,
         code: event.code,
         location: event.location,
@@ -106,32 +106,32 @@ export default function HotkeyCaptureInput({
     );
   };
 
-  const handleMouseDown = (event: React.MouseEvent<HTMLInputElement>) => {
-    // Left click (button 0) is used to start listening — don't capture it
-    // if no modifier is present.
+  const handle_mouse_down = (event: React.MouseEvent<HTMLInputElement>) => {
+
+
     if (!listening) return;
 
     if (event.button === 0) {
-      const hasModifier =
+      const has_modifier =
         event.ctrlKey || event.altKey || event.shiftKey || event.metaKey;
-      if (!hasModifier) return;
+      if (!has_modifier) return;
     }
 
     event.preventDefault();
     event.stopPropagation();
-    acceptHotkey(captureMouseHotkey(event), event.currentTarget);
+    accept_hotkey(capture_mouse_hotkey(event), event.currentTarget);
   };
 
-  const handleWheel = (event: React.WheelEvent<HTMLInputElement>) => {
+  const handle_wheel = (event: React.WheelEvent<HTMLInputElement>) => {
     if (!listening) return;
 
     event.preventDefault();
     event.stopPropagation();
-    acceptHotkey(captureWheelHotkey(event), event.currentTarget);
+    accept_hotkey(capture_wheel_hotkey(event), event.currentTarget);
   };
 
-  const handleContextMenu = (event: React.MouseEvent<HTMLInputElement>) => {
-    // Prevent context menu when listening so right-click can be captured
+  const handle_context_menu = (event: React.MouseEvent<HTMLInputElement>) => {
+
     if (listening) {
       event.preventDefault();
       event.stopPropagation();
@@ -142,14 +142,14 @@ export default function HotkeyCaptureInput({
     <input
       type="text"
       className={className}
-      value={displayText}
+      value={display_text}
       readOnly
-      onFocus={() => setListening(true)}
-      onBlur={() => setListening(false)}
-      onKeyDown={handleKeyDown}
-      onMouseDown={handleMouseDown}
-      onWheel={handleWheel}
-      onContextMenu={handleContextMenu}
+      onFocus={() => set_listening(true)}
+      onBlur={() => set_listening(false)}
+      onKeyDown={handle_key_down}
+      onMouseDown={handle_mouse_down}
+      onWheel={handle_wheel}
+      onContextMenu={handle_context_menu}
       spellCheck={false}
       style={style}
     />

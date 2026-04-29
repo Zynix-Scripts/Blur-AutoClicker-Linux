@@ -16,9 +16,9 @@ import React from "react";
 interface Props {
   settings: Settings;
   update: (patch: Partial<Settings>) => void;
-  onPickPosition: () => Promise<void>;
+  on_pick_position: () => Promise<void>;
   compact: boolean;
-  showExplanations: boolean;
+  show_explanations: boolean;
 }
 
 function ToggleBtn({
@@ -90,7 +90,7 @@ function NumInput({
 }) {
   const ref = useRef<HTMLInputElement>(null);
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handle_change = (e: ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/^0+(?=\d)/, "");
     if (raw !== e.target.value) {
       e.target.value = raw;
@@ -99,7 +99,7 @@ function NumInput({
     onChange(val);
   };
 
-  const handleBlur = (e: FocusEvent<HTMLInputElement>) => {
+  const handle_blur = (e: FocusEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/^0+(?=\d)/, "");
     if (raw !== e.target.value) {
       e.target.value = raw;
@@ -119,8 +119,8 @@ function NumInput({
       value={value}
       min={min}
       max={max}
-      onChange={handleChange}
-      onBlur={handleBlur}
+      onChange={handle_change}
+      onBlur={handle_blur}
       style={{
         background: "transparent",
         border: "none",
@@ -150,7 +150,7 @@ const EDGE_KEYS = {
   bottom: "edgeStopBottom",
 } as const;
 
-function maxDoubleClickDelayMs(
+function max_double_click_delay_ms(
   clickSpeed: number,
   clickInterval: string,
 ): number {
@@ -168,26 +168,26 @@ function maxDoubleClickDelayMs(
 export default function AdvancedPanelLayout({
   settings,
   update,
-  onPickPosition,
+  on_pick_position,
   compact,
-  showExplanations,
+  show_explanations,
 }: Props) {
-  const [pickingPosition, setPickingPosition] = useState(false);
-  const [pickCountdown, setPickCountdown] = useState<number | null>(null);
-  const rowSpacing = compact ? 6 : 8;
-  const cardBodyClass = `adv-card-body ${compact ? "adv-card-body-compact" : ""}`;
-  const featureBodyClass = `adv-feature-body ${compact ? "adv-feature-body-compact" : ""}`;
-  const clampDoubleClickDelay = useEffectEvent((maxDelay: number) => {
-    update({ doubleClickDelay: maxDelay });
+  const [picking_position, set_picking_position] = useState(false);
+  const [pick_countdown, set_pick_countdown] = useState<number | null>(null);
+  const row_spacing = compact ? 6 : 8;
+  const card_body_class = `adv-card-body ${compact ? "adv-card-body-compact" : ""}`;
+  const feature_body_class = `adv-feature-body ${compact ? "adv-feature-body-compact" : ""}`;
+  const clamp_double_click_delay = useEffectEvent((max_delay: number) => {
+    update({ doubleClickDelay: max_delay });
   });
 
   useEffect(() => {
-    const max = maxDoubleClickDelayMs(
+    const max = max_double_click_delay_ms(
       settings.clickSpeed,
       settings.clickInterval,
     );
     if (settings.doubleClickDelay > max) {
-      clampDoubleClickDelay(max);
+      clamp_double_click_delay(max);
     }
   }, [
     settings.clickInterval,
@@ -195,21 +195,21 @@ export default function AdvancedPanelLayout({
     settings.doubleClickDelay,
   ]);
 
-  const showDesc = (text: string) =>
-    showExplanations ? <p className="adv-desc">{text}</p> : null;
+  const show_desc = (text: string) =>
+    show_explanations ? <p className="adv-desc">{text}</p> : null;
 
-  const handlePickPosition = async () => {
-    setPickingPosition(true);
+  const handle_pick_position = async () => {
+    set_picking_position(true);
     try {
       for (let seconds = 3; seconds > 0; seconds -= 1) {
-        setPickCountdown(seconds);
+        set_pick_countdown(seconds);
         await new Promise((resolve) => window.setTimeout(resolve, 1000));
       }
-      setPickCountdown(null);
-      await onPickPosition();
+      set_pick_countdown(null);
+      await on_pick_position();
     } finally {
-      setPickCountdown(null);
-      setPickingPosition(false);
+      set_pick_countdown(null);
+      set_picking_position(false);
     }
   };
 
@@ -241,7 +241,7 @@ export default function AdvancedPanelLayout({
                   ))}
                 </div>
               </div>
-              <div className="adv-row" style={{ marginTop: rowSpacing }}>
+              <div className="adv-row" style={{ marginTop: row_spacing }}>
                 <span className="adv-label">Hotkey</span>
                 <div className="adv-textbox">
                   <HotkeyCaptureInput
@@ -268,7 +268,7 @@ export default function AdvancedPanelLayout({
                   ))}
                 </div>
               </div>
-              <div className="adv-row" style={{ marginTop: rowSpacing }}>
+              <div className="adv-row" style={{ marginTop: row_spacing }}>
                 <span className="adv-label">Mouse Button</span>
                 <div className="simple-seg-group">
                   {(["Left", "Middle", "Right"] as const).map((b) => (
@@ -302,7 +302,7 @@ export default function AdvancedPanelLayout({
                 </div>
               </div>
               <CardDivider />
-              {showDesc(
+              {show_desc(
                 "Randomizes how long the mouse button stays held between the min and max percentages of each click interval.",
               )}
             </div>
@@ -331,7 +331,7 @@ export default function AdvancedPanelLayout({
               <Disableable enabled={settings.speedVariationEnabled}>
                 <CardDivider />
 
-                {showDesc(
+                {show_desc(
                   "Randomizes click timing around your configured speed by up to this percentage.",
                 )}
               </Disableable>
@@ -359,7 +359,7 @@ export default function AdvancedPanelLayout({
               <CardDivider />
               <Disableable enabled={settings.doubleClickEnabled}>
                 <div className="adv-row" style={{ gap: 8 }}>
-                  {showExplanations && (
+                  {show_explanations && (
                     <p className="adv-desc" style={{ flex: 1 }}>
                       Fires the button twice per interval with a configurable
                       delay between the clicks.
@@ -378,7 +378,7 @@ export default function AdvancedPanelLayout({
                         value={settings.doubleClickDelay}
                         onChange={(v) => update({ doubleClickDelay: v })}
                         min={20}
-                        max={maxDoubleClickDelayMs(
+                        max={max_double_click_delay_ms(
                           settings.clickSpeed,
                           settings.clickInterval,
                         )}
@@ -468,7 +468,7 @@ export default function AdvancedPanelLayout({
               <CardDivider />
               <Disableable enabled={settings.cornerStopEnabled}>
                 <div className="adv-row" style={{ gap: 8 }}>
-                  {showExplanations && (
+                  {show_explanations && (
                     <p className="adv-desc" style={{ flex: 1 }}>
                       Stops the clicker when the cursor enters a screen corner.
                       Keep it as a failsafe.
@@ -508,7 +508,7 @@ export default function AdvancedPanelLayout({
               <CardDivider />
               <Disableable enabled={settings.edgeStopEnabled}>
                 <div className="adv-row" style={{ gap: 8 }}>
-                  {showExplanations && (
+                  {show_explanations && (
                     <p className="adv-desc" style={{ flex: 1 }}>
                       Stops the clicker when the cursor reaches a screen edge.
                       Keep it as a failsafe.
@@ -546,7 +546,7 @@ export default function AdvancedPanelLayout({
               <CardDivider />
               <Disableable enabled={settings.positionEnabled}>
                 <div className="adv-row" style={{ marginTop: 8, gap: 6 }}>
-                  {showExplanations && (
+                  {show_explanations && (
                     <p className="adv-desc" style={{ flex: 1 }}>
                       Moves the cursor to the saved point before each click
                       while enabled.
@@ -604,12 +604,12 @@ export default function AdvancedPanelLayout({
                     </div>
                     <button
                       className="adv-pick-btn"
-                      onClick={handlePickPosition}
-                      disabled={pickingPosition}
+                      onClick={handle_pick_position}
+                      disabled={picking_position}
                     >
-                      {pickCountdown
-                        ? `Picking in ${pickCountdown}`
-                        : pickingPosition
+                      {pick_countdown
+                        ? `Picking in ${pick_countdown}`
+                        : picking_position
                           ? "Picking..."
                           : "Pick"}
                     </button>
@@ -650,7 +650,7 @@ export default function AdvancedPanelLayout({
                 ))}
               </div>
             </div>
-            <div className="adv-row" style={{ marginTop: rowSpacing }}>
+            <div className="adv-row" style={{ marginTop: row_spacing }}>
               <span className="adv-label">Hotkey</span>
               <div className="adv-textbox">
                 <HotkeyCaptureInput
@@ -677,7 +677,7 @@ export default function AdvancedPanelLayout({
                 ))}
               </div>
             </div>
-            <div className="adv-row" style={{ marginTop: rowSpacing }}>
+            <div className="adv-row" style={{ marginTop: row_spacing }}>
               <span className="adv-label">Mouse Button</span>
               <div className="simple-seg-group">
                 {(["Left", "Middle", "Right"] as const).map((b) => (
@@ -716,14 +716,14 @@ export default function AdvancedPanelLayout({
                 />
               </div>
               <Disableable enabled={settings.doubleClickEnabled}>
-                <div className={cardBodyClass}>
+                <div className={card_body_class}>
                   <div className="adv-inline-controls adv-inline-controls-start">
                     <div className="adv-numbox-sm">
                       <NumInput
                         value={settings.doubleClickDelay}
                         onChange={(v) => update({ doubleClickDelay: v })}
                         min={20}
-                        max={maxDoubleClickDelayMs(
+                        max={max_double_click_delay_ms(
                           settings.clickSpeed,
                           settings.clickInterval,
                         )}
@@ -749,7 +749,7 @@ export default function AdvancedPanelLayout({
             </div>
             <CardDivider />
             <Disableable enabled={settings.positionEnabled}>
-              <div className={featureBodyClass}>
+              <div className={feature_body_class}>
                 <div className="adv-inline-controls adv-inline-controls-start adv-position-inline">
                   <div
                     className="adv-numbox-sm"
@@ -777,12 +777,12 @@ export default function AdvancedPanelLayout({
                   </div>
                   <button
                     className="adv-pick-btn adv-pick-btn-inline"
-                    onClick={handlePickPosition}
-                    disabled={pickingPosition}
+                    onClick={handle_pick_position}
+                    disabled={picking_position}
                   >
-                    {pickCountdown
-                      ? `Picking in ${pickCountdown}`
-                      : pickingPosition
+                    {pick_countdown
+                      ? `Picking in ${pick_countdown}`
+                      : picking_position
                         ? "Picking..."
                         : "Pick"}
                   </button>
@@ -802,7 +802,7 @@ export default function AdvancedPanelLayout({
               </div>
               <CardDivider />
               <Disableable enabled={settings.clickLimitEnabled}>
-                <div className={cardBodyClass}>
+                <div className={card_body_class}>
                   <div className="adv-inline-controls adv-inline-controls-start adv-limit-inputs">
                     <div className="adv-numbox-sm">
                       <NumInput
@@ -829,7 +829,7 @@ export default function AdvancedPanelLayout({
               </div>
               <CardDivider />
               <Disableable enabled={settings.timeLimitEnabled}>
-                <div className={cardBodyClass}>
+                <div className={card_body_class}>
                   <div className="adv-inline-controls adv-inline-controls-start adv-limit-inputs">
                     <div className="adv-numbox-sm">
                       <NumInput
@@ -865,7 +865,7 @@ export default function AdvancedPanelLayout({
               </div>
               <CardDivider />
               <Disableable enabled={settings.dutyCycleEnabled}>
-                <div className={cardBodyClass}>
+                <div className={card_body_class}>
                   <div className="adv-inline-controls adv-inline-controls-start">
                     <div className="adv-minmax">
                       <div className="adv-numbox-sm">
@@ -893,7 +893,7 @@ export default function AdvancedPanelLayout({
               </div>
               <CardDivider />
               <Disableable enabled={settings.speedVariationEnabled}>
-                <div className={cardBodyClass}>
+                <div className={card_body_class}>
                   <div className="adv-inline-controls adv-inline-controls-start">
                     <div className="adv-numbox-sm">
                       <NumInput
@@ -921,7 +921,7 @@ export default function AdvancedPanelLayout({
               </div>
               <CardDivider />
               <Disableable enabled={settings.cornerStopEnabled}>
-                <div className={featureBodyClass}>
+                <div className={feature_body_class}>
                   <div className="adv-corner-grid">
                     {(["tl", "tr", "bl", "br"] as const).map((c) => (
                       <div key={c} className="adv-corner-box">
@@ -955,7 +955,7 @@ export default function AdvancedPanelLayout({
               </div>
               <CardDivider />
               <Disableable enabled={settings.edgeStopEnabled}>
-                <div className={featureBodyClass}>
+                <div className={feature_body_class}>
                   <div className="adv-corner-grid">
                     {(["top", "right", "left", "bottom"] as const).map((e) => (
                       <div key={e} className="adv-corner-box">

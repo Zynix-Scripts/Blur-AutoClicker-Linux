@@ -14,51 +14,51 @@ export default function UpdateBanner({
   currentVersion,
   latestVersion,
 }: UpdateBannerProps) {
-  const [stage, setStage] = useState<UpdateStage>("ready");
-  const [statusText, setStatusText] = useState<string | null>(null);
+  const [stage, set_stage] = useState<UpdateStage>("ready");
+  const [status_text, set_status_text] = useState<string | null>(null);
 
-  const handleUpdate = async () => {
+  const handle_update = async () => {
     try {
-      setStage("installing");
-      setStatusText("Preparing update...");
+      set_stage("installing");
+      set_status_text("Preparing update...");
 
       const update = await check();
       if (!update) {
-        setStage("ready");
-        setStatusText("Update is no longer available.");
+        set_stage("ready");
+        set_status_text("Update is no longer available.");
         return;
       }
 
       await update.downloadAndInstall((event) => {
         switch (event.event) {
           case "Started":
-            setStatusText("Downloading update...");
+            set_status_text("Downloading update...");
             break;
           case "Progress":
-            setStatusText("Installing update...");
+            set_status_text("Installing update...");
             break;
           case "Finished":
-            setStatusText("Update installed. Restart to apply it.");
+            set_status_text("Update installed. Restart to apply it.");
             break;
         }
       });
 
-      setStage("restart-required");
-      setStatusText("Update installed. Restart to apply it.");
+      set_stage("restart-required");
+      set_status_text("Update installed. Restart to apply it.");
     } catch (err) {
       console.error("Failed to install update:", err);
-      setStage("error");
-      setStatusText("Update install failed.");
+      set_stage("error");
+      set_status_text("Update install failed.");
     }
   };
 
-  const handleRestart = async () => {
+  const handle_restart = async () => {
     try {
       await relaunch();
     } catch (err) {
       console.error("Failed to relaunch app:", err);
-      setStage("error");
-      setStatusText("Restart failed. Please reopen the app manually.");
+      set_stage("error");
+      set_status_text("Restart failed. Please reopen the app manually.");
     }
   };
 
@@ -66,21 +66,21 @@ export default function UpdateBanner({
     <div className="update-banner">
       <span className="update-banner-text-old-version">v{currentVersion}</span>
       <span className="update-banner-text">to</span>
-      {/* does not need v for version, gets it from gitHub ↓  */}
+
       <span className="update-banner-text-new-version">{latestVersion}</span>
-      {statusText && (
+      {status_text && (
         <span className="update-banner-status" data-stage={stage}>
-          {statusText}
+          {status_text}
         </span>
       )}
       {stage === "restart-required" ? (
-        <button className="update-banner-btn" onClick={handleRestart}>
+        <button className="update-banner-btn" onClick={handle_restart}>
           Restart to Apply Update
         </button>
       ) : (
         <button
           className="update-banner-btn"
-          onClick={handleUpdate}
+          onClick={handle_update}
           disabled={stage === "installing"}
         >
           {stage === "installing" ? "Installing..." : "Download and Install"}

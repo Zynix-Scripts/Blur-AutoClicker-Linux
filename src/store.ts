@@ -7,7 +7,7 @@ export const APP_VERSION = await getVersion();
 
 export type SavedPanel = "simple" | "advanced";
 export type ExplanationMode = "off" | "text";
-export type Theme = "dark" | "light";
+export type Theme = "dark" | "oled" | "catppuccin-mocha" | "light" | "nord" | "gruvbox-dark" | "tokyo-night";
 
 export interface Settings {
   version: string;
@@ -48,6 +48,7 @@ export interface Settings {
   showStopOverlay: boolean;
   strictHotkeyModifiers: boolean;
   theme: Theme;
+  dismissedWarnings: string[];
 }
 
 export interface ClickerStatus {
@@ -102,13 +103,14 @@ export const DEFAULT_SETTINGS: Settings = {
   showStopOverlay: true,
   strictHotkeyModifiers: false,
   theme: "dark",
+  dismissedWarnings: [],
 };
 
-function sanitizeSavedPanel(value: unknown): SavedPanel {
+function sanitize_saved_panel(value: unknown): SavedPanel {
   return value === "advanced" ? value : "simple";
 }
 
-function sanitizeExplanationMode(
+function sanitize_explanation_mode(
   input: Partial<Settings> | null | undefined,
 ): ExplanationMode {
   const saved = (input ?? {}) as Partial<Settings> & {
@@ -126,11 +128,11 @@ function sanitizeExplanationMode(
   return "text";
 }
 
-function sanitizeBoolean(value: unknown, fallback: boolean): boolean {
+function sanitize_boolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
-function clampNumber(
+function clamp_number(
   value: unknown,
   fallback: number,
   min?: number,
@@ -138,16 +140,16 @@ function clampNumber(
 ) {
   const parsed =
     typeof value === "number" && Number.isFinite(value) ? value : fallback;
-  const minClamped = min === undefined ? parsed : Math.max(min, parsed);
-  return max === undefined ? minClamped : Math.min(max, minClamped);
+  const min_clamped = min === undefined ? parsed : Math.max(min, parsed);
+  return max === undefined ? min_clamped : Math.min(max, min_clamped);
 }
 
-function sanitizeSettings(input?: Partial<Settings> | null): Settings {
+function sanitize_settings(input?: Partial<Settings> | null): Settings {
   const saved = (input ?? {}) as Partial<Settings> & {
     speedVariationMax?: unknown;
     telemetryEnabled?: unknown;
   };
-  const legacySpeedVariation = clampNumber(
+  const legacy_speed_variation = clamp_number(
     saved.speedVariationMax,
     DEFAULT_SETTINGS.speedVariation,
     0,
@@ -158,97 +160,109 @@ function sanitizeSettings(input?: Partial<Settings> | null): Settings {
     ...DEFAULT_SETTINGS,
     ...saved,
     version: APP_VERSION,
-    clickSpeed: clampNumber(
+    clickSpeed: clamp_number(
       saved.clickSpeed,
       DEFAULT_SETTINGS.clickSpeed,
       1,
       500,
     ),
-    dutyCycleEnabled: sanitizeBoolean(
+    dutyCycleEnabled: sanitize_boolean(
       saved.dutyCycleEnabled,
       DEFAULT_SETTINGS.dutyCycleEnabled,
     ),
-    speedVariationEnabled: sanitizeBoolean(
+    speedVariationEnabled: sanitize_boolean(
       saved.speedVariationEnabled,
       DEFAULT_SETTINGS.speedVariationEnabled,
     ),
-    speedVariation: clampNumber(saved.speedVariation, legacySpeedVariation, 0, 200),
-    doubleClickDelay: clampNumber(
+    speedVariation: clamp_number(saved.speedVariation, legacy_speed_variation, 0, 200),
+    doubleClickDelay: clamp_number(
       saved.doubleClickDelay,
       DEFAULT_SETTINGS.doubleClickDelay,
       20,
       9999,
     ),
-    clickLimit: clampNumber(saved.clickLimit, DEFAULT_SETTINGS.clickLimit, 1),
-    timeLimit: clampNumber(saved.timeLimit, DEFAULT_SETTINGS.timeLimit, 1),
-    cornerStopTL: clampNumber(
+    clickLimit: clamp_number(saved.clickLimit, DEFAULT_SETTINGS.clickLimit, 1),
+    timeLimit: clamp_number(saved.timeLimit, DEFAULT_SETTINGS.timeLimit, 1),
+    cornerStopTL: clamp_number(
       saved.cornerStopTL,
       DEFAULT_SETTINGS.cornerStopTL,
       0,
       999,
     ),
-    cornerStopTR: clampNumber(
+    cornerStopTR: clamp_number(
       saved.cornerStopTR,
       DEFAULT_SETTINGS.cornerStopTR,
       0,
       999,
     ),
-    cornerStopBL: clampNumber(
+    cornerStopBL: clamp_number(
       saved.cornerStopBL,
       DEFAULT_SETTINGS.cornerStopBL,
       0,
       999,
     ),
-    cornerStopBR: clampNumber(
+    cornerStopBR: clamp_number(
       saved.cornerStopBR,
       DEFAULT_SETTINGS.cornerStopBR,
       0,
       999,
     ),
-    edgeStopTop: clampNumber(
+    edgeStopTop: clamp_number(
       saved.edgeStopTop,
       DEFAULT_SETTINGS.edgeStopTop,
       0,
       999,
     ),
-    edgeStopBottom: clampNumber(
+    edgeStopBottom: clamp_number(
       saved.edgeStopBottom,
       DEFAULT_SETTINGS.edgeStopBottom,
       0,
       999,
     ),
-    edgeStopLeft: clampNumber(
+    edgeStopLeft: clamp_number(
       saved.edgeStopLeft,
       DEFAULT_SETTINGS.edgeStopLeft,
       0,
       999,
     ),
-    edgeStopRight: clampNumber(
+    edgeStopRight: clamp_number(
       saved.edgeStopRight,
       DEFAULT_SETTINGS.edgeStopRight,
       0,
       999,
     ),
-    positionX: clampNumber(saved.positionX, DEFAULT_SETTINGS.positionX, 0),
-    positionY: clampNumber(saved.positionY, DEFAULT_SETTINGS.positionY, 0),
+    positionX: clamp_number(saved.positionX, DEFAULT_SETTINGS.positionX, 0),
+    positionY: clamp_number(saved.positionY, DEFAULT_SETTINGS.positionY, 0),
     disableScreenshots: false,
-    explanationMode: sanitizeExplanationMode(saved),
-    lastPanel: sanitizeSavedPanel(saved.lastPanel),
-    theme: saved.theme === "light" ? "light" : "dark",
+    explanationMode: sanitize_explanation_mode(saved),
+    lastPanel: sanitize_saved_panel(saved.lastPanel),
+    theme: (
+      [
+        "dark",
+        "oled",
+        "catppuccin-mocha",
+        "light",
+        "nord",
+        "gruvbox-dark",
+        "tokyo-night",
+      ] as Theme[]
+    ).includes(saved.theme as Theme)
+      ? (saved.theme as Theme)
+      : "dark",
   };
 }
 
-export async function loadSettings(): Promise<Settings> {
+export async function load_settings(): Promise<Settings> {
   const saved = await store.get<Partial<Settings>>("settings");
-  return sanitizeSettings(saved);
+  return sanitize_settings(saved);
 }
 
-export async function saveSettings(settings: Settings): Promise<void> {
-  await store.set("settings", sanitizeSettings(settings));
+export async function save_settings(settings: Settings): Promise<void> {
+  await store.set("settings", sanitize_settings(settings));
   await store.save();
 }
 
-export async function clearSavedSettings(): Promise<void> {
+export async function clear_saved_settings(): Promise<void> {
   await store.set("settings", DEFAULT_SETTINGS);
   await store.save();
 }

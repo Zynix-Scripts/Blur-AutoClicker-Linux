@@ -3,14 +3,14 @@ import "./SystemWarningBanner.css";
 
 interface SystemWarningBannerProps {
   message: string;
-  onDismiss: () => void;
+  on_dismiss: () => void;
 }
 
 export default function SystemWarningBanner({
   message,
-  onDismiss,
+  on_dismiss,
 }: SystemWarningBannerProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, set_expanded] = useState(false);
 
   const lines = message.split("\n");
   const summary = lines[0];
@@ -28,14 +28,14 @@ export default function SystemWarningBanner({
             )}
             <button
               className="sys-warn-toggle"
-              onClick={() => setExpanded((v) => !v)}
+              onClick={() => set_expanded((v) => !v)}
             >
               {expanded ? "less" : "how to fix"}
             </button>
           </>
         )}
       </div>
-      <button className="sys-warn-dismiss" onClick={onDismiss} title="Dismiss">
+      <button className="sys-warn-dismiss" onClick={on_dismiss} title="Dismiss">
         ✕
       </button>
     </div>
