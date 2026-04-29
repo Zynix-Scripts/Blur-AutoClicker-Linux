@@ -54,7 +54,7 @@ mkdir -p "$OUT_DIR"
 FOUND=0
 
 
-if [ ${
+if [ ${#TAURI_TARGETS[@]} -gt 0 ]; then
     TARGETS_STR="${TAURI_TARGETS[*]}"
     echo -e "Building Tauri bundles: ${BLUE}$TARGETS_STR${NC}"
     echo ""
@@ -201,7 +201,7 @@ echo -e "${GREEN}${BOLD}Done!${NC} Packages in ${BLUE}packages/${NC}:"
 ls -lh "$OUT_DIR/"
 
 echo ""
-if [ ${
+if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
     echo -e "${YELLOW}Note:${NC} Some package formats were skipped."
     echo "  Install missing tools to build them:"
     for pkg in "${MISSING_TOOLS[@]}"; do
