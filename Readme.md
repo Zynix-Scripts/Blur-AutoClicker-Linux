@@ -33,8 +33,6 @@ If you are on a hybrid XWayland system (both `DISPLAY` and `WAYLAND_DISPLAY` are
 
 - `uinput` kernel module loaded
 - User in the `input` group (`sudo usermod -aG input $USER`, then log out and back in)
-- For **Pixel Predator on KDE**: no extra tools needed (uses KWin D-Bus)
-- For **Pixel Predator on wlroots**: `grim` must be installed
 
 ---
 
