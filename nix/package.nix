@@ -23,7 +23,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   cargoRoot = "src-tauri";
   buildAndTestSubdir = finalAttrs.cargoRoot;
-  cargoHash = "sha256-HimRjQJng5BJqTRrpx19frF2Y6QIW/WspJ2jBpwTLas=";
+  cargoHash = "sha256-9KGt/Ea+wr1PBU+fVmq0igiBttUYAT86hJEBKmloC7c=";
 
   pnpmDeps = fetchPnpmDeps {
     name = "${finalAttrs.pname}-${version}-pnpm-deps";
