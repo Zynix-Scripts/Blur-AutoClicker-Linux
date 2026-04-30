@@ -4,6 +4,7 @@ dist-ssr/
 src-tauri/target/
 packages/
 /gen/schemas
+/result
 .env
 .env.*
 *.local

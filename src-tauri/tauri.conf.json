@@ -57,7 +57,6 @@
   "bundle": {
     "active": true,
     "targets": ["deb", "rpm"],
-    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -73,18 +72,10 @@
     "homepage": "https://github.com/Blur009/Blur-AutoClicker",
     "linux": {
       "deb": {
-        "depends": [
-          "libwebkit2gtk-4.1-0",
-          "libgtk-3-0",
-          "libxdo3"
-        ]
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0", "libxdo3"]
       },
       "rpm": {
-        "depends": [
-          "webkit2gtk4.1",
-          "gtk3",
-          "libX11"
-        ]
+        "depends": ["webkit2gtk4.1", "gtk3", "libX11"]
       }
     }
   }
