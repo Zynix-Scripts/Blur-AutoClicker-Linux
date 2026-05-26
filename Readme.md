@@ -77,18 +77,29 @@ This is a portable binary | no installer needed.
 Config and stats are stored in `~/.local/share/BlurAutoClicker/`.
 
 ---
-
 ## Building From Source
 
-Requirements:
+#### Requirements:
 - Node.js 20 or newer
 - Rust via `rustup`
 - Linux system dependencies for Tauri (see [Tauri prerequisites](https://tauri.app/start/prerequisites/))
 
-Setup:
+#### Setup:
 ```bash
 git clone https://github.com/Zynix-Scripts/Blur-AutoClicker-Linux.git
 cd Blur-AutoClicker-Linux
+```
+
+**To setup automatically (Suggested option, Arch & Ubuntu)**:
+```bash
+./setup.sh
+```
+and follow the prompts
+
+**OR**
+
+Manually run (Best for development):
+```bash
 npm install
 rustup default stable
 ```
