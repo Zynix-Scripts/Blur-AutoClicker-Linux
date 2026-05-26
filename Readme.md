@@ -90,7 +90,7 @@ git clone https://github.com/Zynix-Scripts/Blur-AutoClicker-Linux.git
 cd Blur-AutoClicker-Linux
 ```
 
-**To setup automaticaly (Suggested option)**:
+**To setup automatically (Suggested option, Arch & Ubuntu)**:
 ```bash
 ./setup.sh
 ```
