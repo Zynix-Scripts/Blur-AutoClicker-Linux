@@ -6,7 +6,7 @@ echo "Do you want to launch the autoclicker after install? (y/N)"
 read LaunchAfterInstall
 
 # Check if we can install dependencies
-if [ $Distro == "Arch" ]; then
+if [ "$Distro" == "Arch" ]; then
   echo "Do you want to automatically install tauri? (Y/n)"
   read InstallTauri
 
@@ -26,10 +26,11 @@ if [ $Distro == "Arch" ]; then
       xdotool
     ;;
   "N" | "n")
-    echo "Skipping to normal setup. (ENSURE YOU HAVE TARUI)"
+    echo "Skipping to normal setup. (ENSURE YOU HAVE TAURI)"
     ;;
   esac
-elif [ $Distro == "Ubuntu"]; then
+
+elif [ "$Distro" == "Ubuntu" ]; then
   echo "Do you want to automatically install tauri? (Y/n)"
   read InstallTauri
 
@@ -47,11 +48,12 @@ elif [ $Distro == "Ubuntu"]; then
       librsvg2-dev
     ;;
   "N" | "n")
-    echo "Skipping to normal setup. (ENSURE YOU HAVE TARUI)"
+    echo "Skipping to normal setup. (ENSURE YOU HAVE TAURI)"
     ;;
   esac
+
 else
-  echo "Unable to automatically install Tauri (Unsupported OS)"
+  echo "Unable to automatically install Tauri (Unsupported OS, Supported OSes include Arch Linux, Ubuntu)"
 fi
 
 echo "Installing nessesary packages..."
@@ -71,6 +73,6 @@ case "$LaunchAfterInstall" in
   fi
   ;;
 "" | "N" | "n")
-  echo "To launch run './src-tauri/target/release/BlurAutoClicker'"
+  echo "To launch run './src-tauri/target/release/BlurAutoClicker', If clicking doesn't work try restarting or adding yourself to the input group"
   ;;
 esac
