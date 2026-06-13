@@ -275,6 +275,16 @@ pub fn linux_key_available() -> bool {
 }
 
 #[cfg(target_os = "linux")]
+fn token_is_alphabetic(token: &str) -> bool {
+    token.len() == 1
+        && token
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_alphabetic())
+            .unwrap_or(false)
+}
+
+#[cfg(target_os = "linux")]
 pub fn send_key_presses(
     key_token: &str,
     count: usize,
@@ -291,12 +301,12 @@ pub fn send_key_presses(
     let key = match linux::token_to_evdev_key(key_token) {
         Some(k) => k,
         None => {
-            log::error!("[keyboard] No evdev mapping for key '{token}' (vk {vk})");
+            log::error!("[keyboard] No evdev mapping for key '{key_token}'");
             return;
         }
     };
 
-    let use_shift = is_alphabetic_vk(vk) && uppercase;
+    let use_shift = token_is_alphabetic(key_token) && uppercase;
 
     for index in 0..count {
         if !control.is_active() {
