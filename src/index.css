@@ -8,26 +8,21 @@
 :root {
   --font-family-base: 'DMSans', sans-serif;
 
-  --bg-base:       rgb(12, 12, 14);
+  --bg-base:       rgb(18, 18, 18);
   --bg-surface:    hsl(0, 0%, 10%);
   --bg-elevated:   hsl(0, 0%, 15%);
   --bg-input:      hsl(0, 0%, 23%);
   --bg-input-off:  hsl(0, 0%, 20%);
 
-  --border:        hsla(180, 67%, 99%, 0.2);
-  --border-focus:  hsla(180, 67%, 99%, 0.3);
-  --border-subtle: hsla(180, 67%, 99%, 0.1);
+  --border:        hsl(90, 0%, 25%);
+  --border-focus:  hsl(0, 0%, 30%);
+  --border-subtle: hsl(0, 0%, 20%);
 
-  --text-primary:  hsla(180, 67%, 99%, 0.9);
-  --text-muted:    hsla(180, 67%, 99%, 0.75);
-  --text-dim:      hsla(180, 67%, 99%, 0.5);
+  --text-primary:  hsla(180, 67%, 99%, 1);
+  --text-muted:    hsla(180, 67%, 99%, 0.5);
+  --text-dim:      hsla(180, 67%, 99%, 0.25);
 
   --accent-green:  hsla(129, 77%, 43%, 0.75);
-  --accent-green-strong: hsla(129, 77%, 43%, 0.92);
-  --accent-green-soft: hsla(129, 77%, 43%, 0.15);
-  --accent-green-ring: hsla(129, 77%, 43%, 0.35);
-  --accent-green-glow-1: hsla(129, 77%, 43%, 0.2);
-  --accent-green-glow-2: hsla(129, 77%, 43%, 0.12);
   --accent-yellow: hsla(41, 99%, 59%, 0.75);
   --accent-red:    hsla(4, 100%, 71%, 0.75);
 
@@ -51,33 +46,28 @@
 }
 
 [data-theme="light"] {
-  --bg-base:       rgb(229, 223, 231);
+  --bg-base:       hsl(0, 0%, 100%);
   --bg-surface:    hsl(0, 0%, 100%);
   --bg-elevated:   hsl(0, 0%, 95%);
-  --bg-input:      hsl(0, 0%, 85%);
-  --bg-input-off:  hsl(0, 0%, 85%);
+  --bg-input:      hsl(0, 0%, 75%);
+  --bg-input-off:  hsl(0, 0%, 86%);
 
-  --border:        hsl(0, 0%, 40%);
-  --border-focus:  hsl(0, 0%, 35%);
-  --border-subtle: hsl(0, 0%, 65%);
+  --border:        hsl(0, 0%, 50%);
+  --border-focus:  hsl(0, 0%, 45%);
+  --border-subtle: hsl(0, 0%, 75%);
 
   --text-primary:  hsla(0, 0%, 0%, 1);
   --text-muted:    hsla(0, 0%, 0%, 0.85);
   --text-dim:      hsla(0, 0%, 0%, 0.65);
 
   --accent-green:  hsla(129, 77%, 30%, 0.9);
-  --accent-green-strong: hsla(129, 77%, 30%, 1);
-  --accent-green-soft: hsla(129, 77%, 30%, 0.2);
-  --accent-green-ring: hsla(129, 77%, 30%, 0.4);
-  --accent-green-glow-1: hsla(129, 77%, 30%, 0.16);
-  --accent-green-glow-2: hsla(129, 77%, 30%, 0.08);
   --accent-yellow: hsla(41, 99%, 35%, 0.9);
   --accent-red:    hsla(4, 100%, 45%, 0.9);
 
   --container-shadow: none;
 
-  --font-weight-li: 400;
-  --font-weight-md: 600;
+  --font-weight-li: 600;
+  --font-weight-md: 700;
   --font-weight-hv: 800;
 
   --divider-color: rgba(0, 0, 0, 0.18);
@@ -268,7 +258,7 @@
 
 body {
   color: var(--text-primary);
-  font-family: var(--font-family-base);
+  font-family: 'DMSans', sans-serif;
   font-size: 1rem;
   overflow: hidden;
   user-select: none;
@@ -296,7 +286,7 @@ html, body, #root {
 
 .panel-area {
   flex: 1;
-  padding: 1.25rem 1.25rem 0.75rem 1.25rem;
+  padding: 1.25rem 1.25rem 1.25rem 1.25rem;
   display: flex;
   flex-direction: column;
   overflow: auto;

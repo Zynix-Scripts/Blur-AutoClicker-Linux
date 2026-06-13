@@ -1,8 +1,6 @@
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { useState } from "react";
-import { useTranslation, type TranslationKey } from "../i18n";
-import UnavailableReason from "./UnavailableReason";
 import "./Updatebanner.css";
 
 interface UpdateBannerProps {
@@ -63,15 +61,6 @@ export default function UpdateBanner({
       set_status_text("Restart failed. Please reopen the app manually.");
     }
   };
-
-  const installDisabledReason =
-    stage === "installing"
-      ? statusKey === "update.installing"
-        ? t("update.installAlreadyInstalling")
-        : statusKey === "update.downloading"
-          ? t("update.installAlreadyDownloading")
-          : t("update.installAlreadyPreparing")
-      : undefined;
 
   return (
     <div className="update-banner">

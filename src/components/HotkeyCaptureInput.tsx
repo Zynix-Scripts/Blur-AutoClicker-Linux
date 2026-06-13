@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   capture_hotkey,
@@ -7,7 +7,6 @@ import {
   format_hotkey_for_display,
   get_keyboard_layout_map,
 } from "../hotkeys";
-import { useTranslation, type TranslationKey } from "../i18n";
 
 interface Props {
   value: string;
@@ -37,14 +36,6 @@ export default function HotkeyCaptureInput({
 
     return () => {
       active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (suppressResetTimerRef.current !== null) {
-        window.clearTimeout(suppressResetTimerRef.current);
-      }
     };
   }, []);
 
@@ -144,144 +135,11 @@ export default function HotkeyCaptureInput({
     if (listening) {
       event.preventDefault();
       event.stopPropagation();
-
-      if (event.key === "Escape") {
-        finishCapture();
-        return;
-      }
-
-      if (
-        (event.key === "Backspace" || event.key === "Delete") &&
-        !event.ctrlKey &&
-        !event.altKey &&
-        !event.shiftKey &&
-        !event.metaKey
-      ) {
-        finishCapture("");
-        return;
-      }
-
-      const nextHotkey = captureHotkey(event);
-      if (!nextHotkey) return;
-
-      finishCapture(nextHotkey);
-    };
-
-    const handleMouseDown = (event: MouseEvent) => {
-      const input = inputRef.current;
-      const isInputTarget =
-        input !== null &&
-        event.target instanceof Node &&
-        input.contains(event.target);
-
-      if (
-        isInputTarget &&
-        event.button === 0 &&
-        performance.now() < ignorePrimaryInputMouseUntilRef.current
-      ) {
-        return;
-      }
-
-      const nextHotkey = captureMouseHotkey(event);
-      if (!nextHotkey) return;
-
-      suppressedMouseButtonRef.current = event.button;
-      if (suppressResetTimerRef.current !== null) {
-        window.clearTimeout(suppressResetTimerRef.current);
-      }
-      suppressResetTimerRef.current = window.setTimeout(() => {
-        suppressedMouseButtonRef.current = null;
-        suppressResetTimerRef.current = null;
-      }, 200);
-
-      if (event.cancelable) {
-        event.preventDefault();
-      }
-      event.stopPropagation();
-
-      finishCapture(nextHotkey);
-    };
-
-    window.addEventListener("keydown", handleKeyDown, true);
-    window.addEventListener("mousedown", handleMouseDown, true);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, true);
-      window.removeEventListener("mousedown", handleMouseDown, true);
-    };
-  }, [listening, onChange]);
-
-  const hotkeyLabels = useMemo<HotkeyDisplayLabels>(() => {
-    const keyCodes = [
-      "up",
-      "down",
-      "left",
-      "right",
-      "pageup",
-      "pagedown",
-      "backspace",
-      "delete",
-      "insert",
-      "home",
-      "end",
-      "enter",
-      "tab",
-      "space",
-      "escape",
-      "esc",
-      "capslock",
-      "numlock",
-      "scrolllock",
-      "printscreen",
-      "pause",
-      "menu",
-      "mouseleft",
-      "mouseright",
-      "mousemiddle",
-      "mouse4",
-      "mouse5",
-      "numpad0",
-      "numpad1",
-      "numpad2",
-      "numpad3",
-      "numpad4",
-      "numpad5",
-      "numpad6",
-      "numpad7",
-      "numpad8",
-      "numpad9",
-      "numpadadd",
-      "numpadsubtract",
-      "numpadmultiply",
-      "numpaddivide",
-      "numpaddecimal",
-    ] as const;
-
-    return {
-      empty: t("hotkey.empty"),
-      modifiers: {
-        ctrl: t("hotkey.modifier.ctrl"),
-        alt: t("hotkey.modifier.alt"),
-        shift: t("hotkey.modifier.shift"),
-        super: t("hotkey.modifier.super"),
-      },
-      keys: Object.fromEntries(
-        keyCodes.map((code) => [code, t(`hotkey.key.${code}` as TranslationKey)]),
-      ),
-    };
-  }, [t]);
-
-  const displayText = useMemo(
-    () =>
-      listening
-        ? t("hotkey.pressKeys")
-        : formatHotkeyForDisplay(value, layoutMap, hotkeyLabels),
-    [hotkeyLabels, layoutMap, listening, t, value],
-  );
+    }
+  };
 
   return (
     <input
-      ref={inputRef}
       type="text"
       className={className}
       value={display_text}

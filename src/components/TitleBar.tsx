@@ -1,13 +1,6 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Tab } from "../App";
-import { translateStopReason, useTranslation, type TranslationKey } from "../i18n";
 import "./TitleBar.css";
 
 const app_window = getCurrentWindow();
@@ -31,9 +24,9 @@ type TabIconProps = {
 
 type TabItem = {
   value: NavTab;
-  labelKey: TranslationKey;
+  label: string;
   color: string;
-  icon: (props: TabIconProps) => ReactNode;
+  icon: (props: TabIconProps) => React.ReactNode;
 };
 
 type TitleViewState = {
@@ -51,7 +44,7 @@ const DEFAULT_TITLE_STATE: TitleViewState = {
 const TAB_ITEMS: readonly TabItem[] = [
   {
     value: "simple",
-    labelKey: "titleBar.simple",
+    label: "Simple",
     color: "var(--accent-green)",
     icon: ({ active }) => (
       <svg
@@ -72,7 +65,7 @@ const TAB_ITEMS: readonly TabItem[] = [
   },
   {
     value: "advanced",
-    labelKey: "titleBar.advanced",
+    label: "Advanced",
     color: "var(--accent-yellow)",
     icon: ({ active }) => (
       <svg
@@ -89,26 +82,6 @@ const TAB_ITEMS: readonly TabItem[] = [
         <path d="m12 3 9 4.5-9 4.5-9-4.5L12 3z" />
         <path d="m3 12.5 9 4.5 9-4.5" />
         <path d="m3 17.5 9 4.5 9-4.5" />
-      </svg>
-    ),
-  },
-  {
-    value: "zones",
-    labelKey: "titleBar.zones",
-    color: "hsl(208 85% 58%)",
-    icon: ({ active }) => (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={active ? "2.2" : "2"}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <circle cx="12" cy="12" r="8" />
       </svg>
     ),
   },
@@ -140,7 +113,7 @@ export default function TitleBar({
         {
           WebkitAppRegion: "drag",
           WebkitUserSelect: "none",
-        } as CSSProperties
+        } as React.CSSProperties
       }
       data-tauri-drag-region
       data-running={running}
@@ -195,7 +168,7 @@ export default function TitleBar({
             alignItems: "center",
             gap: "4px",
             WebkitAppRegion: "no-drag",
-          } as CSSProperties
+          } as React.CSSProperties
         }
       >
         <WindowBtn
@@ -230,7 +203,6 @@ export default function TitleBar({
         <WindowBtn
           onClick={on_request_close}
           danger
-          title={t("titleBar.close")}
           label={
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
               <path
@@ -242,6 +214,13 @@ export default function TitleBar({
           }
         />
       </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -333,7 +312,7 @@ function TabIconButton({
   onClick,
   color,
 }: {
-  icon: ReactNode;
+  icon: React.ReactNode;
   label: string;
   active: boolean;
   onClick: () => void;
@@ -350,7 +329,7 @@ function TabIconButton({
         {
           "--active-color": color,
           WebkitAppRegion: "no-drag",
-        } as CSSProperties
+        } as React.CSSProperties
       }
     >
       {icon}
@@ -366,7 +345,7 @@ function WindowBtn({
   title,
 }: {
   onClick: () => void;
-  label: ReactNode;
+  label: React.ReactNode;
   danger?: boolean;
   active?: boolean;
   title?: string;

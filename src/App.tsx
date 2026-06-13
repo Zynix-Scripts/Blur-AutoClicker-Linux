@@ -21,24 +21,14 @@ import {
 } from "./store";
 
 const SimplePanel = lazy(() => import("./components/panels/SimplePanel"));
-const AdvancedPanel = lazy(
-  () => import("./components/panels/advanced/AdvancedPanel"),
-);
-const ZonesPanel = lazy(() => import("./components/panels/zones/ZonesPanel"));
+const AdvancedPanel = lazy(() => import("./components/panels/AdvancedPanel"));
 const SettingsPanel = lazy(() => import("./components/panels/SettingsPanel"));
 const TitleBar = lazy(() => import("./components/TitleBar"));
-export type Tab = "simple" | "advanced" | "zones" | "settings";
-
-const BACKEND_SETTINGS_SCHEMA_VERSION = 10;
-const MAX_DROPDOWN_OVERFLOW_BOTTOM = 220;
-const OPERATIONAL_SETTING_KEYS = new Set<string>(
-  Object.keys(buildPresetSnapshot(DEFAULT_SETTINGS)),
+const AdvancedPanelCompact = lazy(
+  () => import("./components/panels/AdvancedPanelCompact"),
 );
 
-type DropdownOverflowDetail = {
-  active: boolean;
-  bottom?: number;
-};
+export type Tab = "simple" | "advanced" | "settings";
 
 const BACKEND_SETTINGS_SCHEMA_VERSION = 5;
 
@@ -90,8 +80,6 @@ const DEFAULT_STATUS: ClickerStatus = {
   clickCount: 0,
   lastError: null,
   stopReason: null,
-  activeSequenceIndex: null,
-  activeSequenceTick: 0,
 };
 
 const DEFAULT_APP_INFO: AppInfo = {
@@ -252,10 +240,6 @@ export default function App() {
 
   const update_settings = (patch: Partial<Settings>) => {
     const { hotkey, ...rest } = patch;
-    const shouldClearActivePreset =
-      !options.preserveActivePreset &&
-      (hotkey !== undefined ||
-        Object.keys(rest).some((key) => OPERATIONAL_SETTING_KEYS.has(key)));
 
     if (Object.keys(rest).length > 0) {
       const next_ui_settings = { ...ui_settings_ref.current, ...rest };
@@ -392,7 +376,6 @@ export default function App() {
           preferred_size,
           text_scale,
         );
-        const windowHeight = height + dropdownOverflowBottom;
 
         const app_window = getCurrentWindow();
 
@@ -510,17 +493,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const theme = settings.theme ?? "dark";
-    document.documentElement.dataset.theme = theme;
-    applyAccentTheme(settings.accentColor, theme);
-  }, [settings.accentColor, settings.theme]);
-
-  useEffect(() => {
-    document.documentElement.lang = settings.language;
-    document.documentElement.dir = isRtlLanguage(settings.language)
-      ? "rtl"
-      : "ltr";
-  }, [settings.language]);
+    document.documentElement.dataset.theme = settings.theme ?? "dark";
+  }, [settings.theme]);
 
   const handle_tab_change = (next_tab: Tab) => {
     set_tab(next_tab);

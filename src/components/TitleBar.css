@@ -33,10 +33,10 @@
 }
 
 .window-title-background[data-running="true"] .window-title {
-  color: var(--accent-green-strong);
+  color: #9ae7ae;
   text-shadow:
-    0 0 10px var(--accent-green-glow-1),
-    0 0 18px var(--accent-green-glow-2);
+    0 0 0.625rem rgba(74, 222, 128, 0.2),
+    0 0 1.125rem rgba(74, 222, 128, 0.12);
 }
 
 .settings-button {
@@ -155,7 +155,7 @@
 }
 
 .window-btn.active:hover {
-  background: var(--accent-green-soft);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 

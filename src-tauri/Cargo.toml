@@ -1,6 +1,6 @@
 [package]
 name = "BlurAutoClicker"
-version = "3.4.4"
+version = "3.7.0"
 description = "BlurAutoClicker Linux"
 authors = ["Blur009"]
 license = "GPL-3.0"
@@ -15,7 +15,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.0", features = [] }
 
 [dependencies]
-tauri = { version = "2.0", features = [] }
+tauri = { version = "2.0", features = ["tray-icon", "image-ico"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 serde = { version = "1.0", features = ["derive"] }
 reqwest = { version = "0.12", features = ["json"] }
@@ -53,3 +53,9 @@ x11rb = { version = "0.13", features = ["xtest", "randr"] }
 evdev = "0.12"
 libc = "0.2"
 image = { version = "0.25", default-features = false, features = ["png"] }
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1
+debug = false

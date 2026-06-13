@@ -1,10 +1,5 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { LazyStore } from "@tauri-apps/plugin-store";
-import {
-  createDefaultSettings,
-  sanitizeSettings,
-  type Settings,
-} from "./settingsSchema";
 
 const store = new LazyStore("settings.json");
 
@@ -61,8 +56,6 @@ export interface ClickerStatus {
   clickCount: number;
   lastError: string | null;
   stopReason: string | null;
-  activeSequenceIndex: number | null;
-  activeSequenceTick: number;
 }
 
 export interface AppInfo {

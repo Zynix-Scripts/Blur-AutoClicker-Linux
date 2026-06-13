@@ -17,6 +17,7 @@ use crate::engine::worker::start_clicker_inner;
 use crate::engine::worker::stop_clicker_inner;
 use crate::hotkeys::register_hotkey_inner;
 
+
 #[tauri::command]
 pub fn get_text_scale_factor() -> f64 {
     #[cfg(target_os = "windows")]
@@ -25,7 +26,9 @@ pub fn get_text_scale_factor() -> f64 {
         use winreg::RegKey;
 
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let key = hkcu.open_subkey(r"Software\Microsoft\Accessibility").ok();
+        let key = hkcu
+            .open_subkey(r"Software\Microsoft\Accessibility")
+            .ok();
 
         if let Some(key) = key {
             let value: u32 = key.get_value("TextScaleFactor").unwrap_or(100);
@@ -45,10 +48,12 @@ pub fn set_webview_zoom(window: tauri::Window, factor: f64) -> Result<(), String
 }
 
 #[tauri::command]
-pub fn set_always_on_top_linux(window: tauri::Window, enabled: bool) -> Result<(), String> {
+pub fn set_always_on_top_linux(_window: tauri::Window, _enabled: bool) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        let window = _window;
+        let enabled = _enabled;
         let handle = window.window_handle().map_err(|e| e.to_string())?;
         let window_id = match handle.as_raw() {
             RawWindowHandle::Xlib(h) => h.window as u32,
@@ -144,14 +149,7 @@ pub fn update_settings(
         || old.corner_stop_tl != settings.corner_stop_tl
         || old.corner_stop_tr != settings.corner_stop_tr
         || old.corner_stop_bl != settings.corner_stop_bl
-        || old.corner_stop_br != settings.corner_stop_br
-        || old.custom_stop_zone_enabled != settings.custom_stop_zone_enabled
-        || old.custom_stop_zone_x != settings.custom_stop_zone_x
-        || old.custom_stop_zone_y != settings.custom_stop_zone_y
-        || old.custom_stop_zone_width != settings.custom_stop_zone_width
-        || old.custom_stop_zone_height != settings.custom_stop_zone_height;
-    let sequence_changed = old.sequence_enabled != settings.sequence_enabled
-        || old.sequence_points != settings.sequence_points;
+        || old.corner_stop_br != settings.corner_stop_br;
     drop(old);
 
     *state.settings.lock().unwrap() = settings.clone();
@@ -164,9 +162,6 @@ pub fn update_settings(
 
     if zone_changed {
         let _ = crate::overlay::show_overlay(&app);
-    }
-    if sequence_changed && settings.sequence_enabled {
-        let _ = crate::overlay::show_sequence_points_overlay(&app);
     }
 
     Ok(settings)
@@ -226,28 +221,6 @@ pub fn pick_position() -> Result<PositionPayload, String> {
 }
 
 #[tauri::command]
-pub fn start_sequence_point_pick(app: AppHandle) -> Result<(), String> {
-    crate::sequence_picker::start_sequence_point_pick_inner(app)
-}
-
-#[tauri::command]
-pub fn cancel_sequence_point_pick(app: AppHandle) -> Result<(), String> {
-    crate::sequence_picker::cancel_sequence_point_pick_inner(&app);
-    Ok(())
-}
-
-#[tauri::command]
-pub fn start_custom_stop_zone_pick(app: AppHandle) -> Result<(), String> {
-    crate::custom_stop_zone_picker::start_custom_stop_zone_pick_inner(app)
-}
-
-#[tauri::command]
-pub fn cancel_custom_stop_zone_pick(app: AppHandle) -> Result<(), String> {
-    crate::custom_stop_zone_picker::cancel_custom_stop_zone_pick_inner(&app);
-    Ok(())
-}
-
-#[tauri::command]
 pub fn get_app_info(app: AppHandle) -> Result<AppInfoPayload, String> {
     let version = app.package_info().version.to_string();
     Ok(AppInfoPayload {
@@ -265,20 +238,4 @@ pub fn get_stats() -> Result<CumulativeStats, String> {
 #[tauri::command]
 pub fn reset_stats() -> Result<CumulativeStats, String> {
     crate::engine::stats::reset_stats()
-}
-
-#[tauri::command]
-pub fn get_autostart_enabled() -> bool {
-    crate::autostart::get_autostart_enabled()
-}
-
-#[tauri::command]
-pub fn set_autostart_enabled(enabled: bool) -> Result<(), String> {
-    crate::autostart::set_autostart_enabled(enabled).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn quit_app(app: AppHandle) {
-    crate::overlay::OVERLAY_THREAD_RUNNING.store(false, std::sync::atomic::Ordering::SeqCst);
-    app.exit(0);
 }

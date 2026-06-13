@@ -21,19 +21,6 @@ const MODIFIER_KEYS = new Set([
   "altgraph",
 ]);
 
-const MODIFIER_CODES = new Set([
-  "ControlLeft",
-  "ControlRight",
-  "ShiftLeft",
-  "ShiftRight",
-  "AltLeft",
-  "AltRight",
-  "MetaLeft",
-  "MetaRight",
-  "OSLeft",
-  "OSRight",
-]);
-
 const SHIFTED_SYMBOL_BASE_MAP: Record<string, string> = {
   "?": "/",
   ":": ";",
@@ -58,35 +45,12 @@ const NUMPAD_CODE_MAP: Record<string, string> = {
   Numpad7: "numpad7",
   Numpad8: "numpad8",
   Numpad9: "numpad9",
-};
-
-const KEY_CODE_MAIN_KEY_MAP: Record<string, string> = {
-  Backspace: "backspace",
-  Delete: "delete",
-  Insert: "insert",
-  Home: "home",
-  End: "end",
-  PageUp: "pageup",
-  PageDown: "pagedown",
-  ArrowUp: "up",
-  ArrowDown: "down",
-  ArrowLeft: "left",
-  ArrowRight: "right",
-  Enter: "enter",
-  Tab: "tab",
-  Space: "space",
-  Escape: "escape",
-  CapsLock: "capslock",
-  NumLock: "numlock",
-  ScrollLock: "scrolllock",
-  PrintScreen: "printscreen",
-  Pause: "pause",
-  ContextMenu: "menu",
   NumpadAdd: "numpadadd",
   NumpadSubtract: "numpadsubtract",
   NumpadMultiply: "numpadmultiply",
   NumpadDivide: "numpaddivide",
   NumpadDecimal: "numpaddecimal",
+  NumpadEnter: "numpadenter",
 };
 
 const NUMPAD_LOCATION_KEY_MAP: Record<string, string> = {
@@ -105,6 +69,7 @@ const NUMPAD_LOCATION_KEY_MAP: Record<string, string> = {
   "*": "numpadmultiply",
   "/": "numpaddivide",
   ".": "numpaddecimal",
+  enter: "numpadenter",
 };
 
 type LayoutMapLike = {
@@ -135,17 +100,40 @@ function normalize_named_key(key: string): string | null {
     arrowdown: "down",
     arrowleft: "left",
     arrowright: "right",
-    capslock: "capslock",
-    numlock: "numlock",
-    scrolllock: "scrolllock",
-    printscreen: "printscreen",
-    pause: "pause",
-    break: "pause",
-    contextmenu: "menu",
-    apps: "menu",
-    menu: "menu",
-    escape: "escape",
-    esc: "escape",
+    mouseleft: "mouseleft",
+    mouse1: "mouseleft",
+    mouseright: "mouseright",
+    mouse2: "mouseright",
+    mousemiddle: "mousemiddle",
+    mouse3: "mousemiddle",
+    scrollbutton: "mousemiddle",
+    middleclick: "mousemiddle",
+    mouse4: "mouse4",
+    mouseback: "mouse4",
+    xbutton1: "mouse4",
+    mouse5: "mouse5",
+    mouseforward: "mouse5",
+    xbutton2: "mouse5",
+    scrollup: "scrollup",
+    wheelup: "scrollup",
+    scrolldown: "scrolldown",
+    wheeldown: "scrolldown",
+    numpad0: "numpad0",
+    numpad1: "numpad1",
+    numpad2: "numpad2",
+    numpad3: "numpad3",
+    numpad4: "numpad4",
+    numpad5: "numpad5",
+    numpad6: "numpad6",
+    numpad7: "numpad7",
+    numpad8: "numpad8",
+    numpad9: "numpad9",
+    numpadadd: "numpadadd",
+    numpadsubtract: "numpadsubtract",
+    numpadmultiply: "numpadmultiply",
+    numpaddivide: "numpaddivide",
+    numpaddecimal: "numpaddecimal",
+    numpadenter: "numpadenter",
   };
 
   if (/^f\d{1,2}$/i.test(key)) {
@@ -158,60 +146,17 @@ function normalize_named_key(key: string): string | null {
 function normalize_numpad_from_code(
   code: string | undefined,
   key: string,
-  location?: number,
+  location: number | undefined,
 ): string | null {
-  if (code === "IntlBackslash") {
-    return "IntlBackslash";
+  if (code && NUMPAD_CODE_MAP[code]) {
+    return NUMPAD_CODE_MAP[code];
   }
 
-  if (/^Key[A-Z]$/.test(code)) {
-    return code;
+  if (location !== 3) {
+    return null;
   }
 
-  if (/^Digit[0-9]$/.test(code)) {
-    return code;
-  }
-
-  if (/^Numpad[0-9]$/.test(code)) {
-    return `numpad${code.slice(6)}`;
-  }
-
-  if (location === 3) {
-    const locationMapped = NUMPAD_LOCATION_KEY_MAP[key.toLowerCase()];
-    if (locationMapped) {
-      return locationMapped;
-    }
-  }
-
-  return KEY_CODE_MAIN_KEY_MAP[code] ?? null;
-}
-
-function mainKeyFromKey(key: string): string | null {
-  if (key === " ") return "space";
-
-  const normalizedNamedKey = normalizeNamedKey(key);
-  return (
-    normalizedNamedKey ??
-    normalizeNumpadToken(key) ??
-    normalizeMouseToken(key) ??
-    (SHIFTED_SYMBOL_BASE_MAP[key] ?? (key.length === 1 ? key.toLowerCase() : null))
-  );
-}
-
-function buildHotkeyString(
-  mainKey: string,
-  event: Pick<
-    KeyboardCaptureEvent,
-    "ctrlKey" | "altKey" | "shiftKey" | "metaKey"
-  >,
-): string {
-  const parts: string[] = [];
-  if (event.ctrlKey) parts.push("ctrl");
-  if (event.altKey) parts.push("alt");
-  if (event.shiftKey) parts.push("shift");
-  if (event.metaKey) parts.push("super");
-  parts.push(mainKey);
-  return parts.join("+");
+  return NUMPAD_LOCATION_KEY_MAP[key.toLowerCase()] ?? null;
 }
 
 function display_token_from_stored_value(
@@ -257,22 +202,29 @@ function display_token_from_stored_value(
     space: "Space",
     escape: "Esc",
     esc: "Esc",
-    capslock: "Caps Lock",
-    numlock: "Num Lock",
-    scrolllock: "Scroll Lock",
-    printscreen: "Print Screen",
-    pause: "Pause",
-    menu: "Menu",
+    mouseleft: "Mouse Left",
+    mouseright: "Mouse Right",
+    mousemiddle: "Scroll Button",
+    mouse4: "Mouse Back",
+    mouse5: "Mouse Forward",
+    scrollup: "Scroll Up",
+    scrolldown: "Scroll Down",
+    numpad0: "Num 0",
+    numpad1: "Num 1",
+    numpad2: "Num 2",
+    numpad3: "Num 3",
+    numpad4: "Num 4",
+    numpad5: "Num 5",
+    numpad6: "Num 6",
+    numpad7: "Num 7",
+    numpad8: "Num 8",
+    numpad9: "Num 9",
     numpadadd: "Num +",
     numpadsubtract: "Num -",
     numpadmultiply: "Num *",
     numpaddivide: "Num /",
     numpaddecimal: "Num .",
-    mouseleft: "Mouse Left",
-    mouseright: "Mouse Right",
-    mousemiddle: "Mouse Middle",
-    mouse4: "Mouse Back",
-    mouse5: "Mouse Forward",
+    numpadenter: "Num Enter",
   };
 
   if (named_display_map[lower]) {
@@ -302,8 +254,8 @@ function normalize_stored_main_key(
     return trimmed.slice(5);
   }
 
-  if (/^Numpad[0-9]$/.test(trimmed)) {
-    return `numpad${trimmed.slice(6)}`;
+  if (NUMPAD_CODE_MAP[trimmed]) {
+    return NUMPAD_CODE_MAP[trimmed];
   }
 
   const lower = trimmed.toLowerCase();
@@ -438,17 +390,17 @@ export function format_hotkey_for_display(
   value: string,
   layout_map: LayoutMapLike | null,
 ): string {
-  if (!value) return labels?.empty ?? "Click and press keys";
+  if (!value) return "Click and press keys";
 
   return value
     .split("+")
     .map((part) => {
       const modifier = normalize_modifier_token(part);
       if (modifier) {
-        if (modifier === "ctrl") return labels?.modifiers.ctrl ?? "Ctrl";
-        if (modifier === "alt") return labels?.modifiers.alt ?? "Alt";
-        if (modifier === "shift") return labels?.modifiers.shift ?? "Shift";
-        return labels?.modifiers.super ?? "Super";
+        if (modifier === "ctrl") return "Ctrl";
+        if (modifier === "alt") return "Alt";
+        if (modifier === "shift") return "Shift";
+        return "Super";
       }
 
       const display = display_token_from_stored_value(part, layout_map);
@@ -470,10 +422,9 @@ function canonicalize_hotkey_string(
 
     const modifier = normalize_modifier_token(part);
     if (modifier) {
-      if (modifier === "ctrl") ctrl = true;
-      if (modifier === "alt") alt = true;
-      if (modifier === "shift") shift = true;
-      if (modifier === "super") superKey = true;
+      if (!parts.includes(modifier)) {
+        parts.push(modifier);
+      }
       continue;
     }
 
