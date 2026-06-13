@@ -73,11 +73,3 @@ jobs:
           name: blur-autoclicker-linux-x86_64
           path: packages/*
           if-no-files-found: error
-
-      - name: Create draft release (tag pushes only)
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: packages/*
-          draft: true
-          generate_release_notes: true
