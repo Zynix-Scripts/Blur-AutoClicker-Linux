@@ -39,7 +39,7 @@ jobs:
       - name: Install Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workdir: src-tauri
+          workspaces: src-tauri
 
       - name: Install Linux system dependencies
         run: |
@@ -55,34 +55,29 @@ jobs:
             curl \
             wget \
             file \
+            dpkg \
             rpm
 
       - name: Install npm dependencies
         run: npm install
 
-      - name: Build Tauri app
-        run: npm run build
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ""
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      - name: Build Linux packages
+        run: ./scripts/build-packages.sh
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: blur-autoclicker-linux-x86_64
-          path: |
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/rpm/*.rpm
-            src-tauri/target/release/BlurAutoClicker
+          path: packages/*
           if-no-files-found: error
 
       - name: Create draft release (tag pushes only)
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/rpm/*.rpm
-            src-tauri/target/release/BlurAutoClicker
+          files: packages/*
           draft: true
           generate_release_notes: true
