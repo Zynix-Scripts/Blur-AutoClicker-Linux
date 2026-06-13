@@ -1,9 +1,32 @@
+#[derive(Clone, serde::Deserialize, serde::Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SequencePoint {
+    #[serde(default)]
+    pub id: String,
+    pub x: i32,
+    pub y: i32,
+    #[serde(default = "default_sequence_point_clicks")]
+    pub clicks: u32,
+}
+
+fn default_sequence_point_clicks() -> u32 {
+    1
+}
+
+fn default_keyboard_key_case() -> String {
+    "lower".to_string()
+}
+
 #[derive(Clone, serde::Deserialize, serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ClickerSettings {
     pub version: u32,
     pub click_speed: f64,
     pub click_interval: String,
+    pub input_type: String,
+    pub keyboard_key: String,
+    #[serde(default = "default_keyboard_key_case")]
+    pub keyboard_key_case: String,
     pub mouse_button: String,
     pub mode: String,
     pub hotkey: String,
@@ -40,6 +63,8 @@ pub struct ClickerSettings {
     pub custom_stop_zone_y: i32,
     pub custom_stop_zone_width: i32,
     pub custom_stop_zone_height: i32,
+    pub sequence_enabled: bool,
+    pub sequence_points: Vec<SequencePoint>,
     pub disable_screenshots: bool,
     pub advanced_settings_enabled: bool,
     pub explanation_mode: String,
@@ -54,9 +79,12 @@ pub struct ClickerSettings {
 impl Default for ClickerSettings {
     fn default() -> Self {
         Self {
-            version: 3,
+            version: 5,
             click_speed: 25.0,
             click_interval: "s".to_string(),
+            input_type: "mouse".to_string(),
+            keyboard_key: String::new(),
+            keyboard_key_case: default_keyboard_key_case(),
             mouse_button: "Left".to_string(),
             mode: "Toggle".to_string(),
             hotkey: "ctrl+y".to_string(),
@@ -89,6 +117,8 @@ impl Default for ClickerSettings {
             custom_stop_zone_y: 0,
             custom_stop_zone_width: 100,
             custom_stop_zone_height: 100,
+            sequence_enabled: false,
+            sequence_points: Vec::new(),
             disable_screenshots: false,
             advanced_settings_enabled: true,
             explanation_mode: "text".to_string(),

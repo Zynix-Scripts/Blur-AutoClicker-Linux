@@ -80,6 +80,8 @@ const DEFAULT_STATUS: ClickerStatus = {
   clickCount: 0,
   lastError: null,
   stopReason: null,
+  activeSequenceIndex: null,
+  activeSequenceTick: 0,
 };
 
 const DEFAULT_APP_INFO: AppInfo = {
@@ -112,6 +114,8 @@ interface SystemDepsInfo {
   in_input_group: boolean;
   uinput_module_loaded: boolean;
   is_root: boolean;
+  mouse_backend: string;
+  keyboard_backend: string;
   warnings: string[];
 }
 
@@ -345,6 +349,27 @@ export default function App() {
       })
       .catch((err) => {
         console.error("Failed to listen for clicker status:", err);
+      });
+
+    return () => {
+      cleanup?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+
+    listen<Settings>("settings-changed", (event) => {
+      const next = event.payload;
+      ui_settings_ref.current = next;
+      committed_settings_ref.current = next;
+      set_settings(next);
+    })
+      .then((unlisten) => {
+        cleanup = unlisten;
+      })
+      .catch((err) => {
+        console.error("Failed to listen for settings changes:", err);
       });
 
     return () => {
@@ -598,12 +623,14 @@ export default function App() {
               settings={settings}
               update={update_settings}
               on_pick_position={handle_pick_position}
+              activeSequenceIndex={status.activeSequenceIndex}
             />
           ) : (
             <AdvancedPanel
               settings={settings}
               update={update_settings}
               on_pick_position={handle_pick_position}
+              activeSequenceIndex={status.activeSequenceIndex}
             />
           ))}
         {tab === "settings" && (

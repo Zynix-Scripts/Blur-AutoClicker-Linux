@@ -1,0 +1,135 @@
+.seq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.seq-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 12px 0;
+}
+
+.seq-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.seq-row.active {
+  border-color: var(--accent-yellow);
+  background: rgba(255, 230, 0, 0.08);
+}
+
+.seq-index {
+  width: 20px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.seq-fields {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+
+.seq-input {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  font-size: 0.85rem;
+  width: 70px;
+  text-align: center;
+}
+
+.seq-input.seq-clicks {
+  width: 55px;
+}
+
+.seq-input:focus {
+  outline: none;
+  border-color: var(--accent-green);
+}
+
+.seq-remove {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seq-remove:hover {
+  background: rgba(255, 80, 80, 0.2);
+  color: var(--accent-red);
+}
+
+.seq-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.seq-btn {
+  flex: 1;
+  min-width: 90px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background 0.15s ease;
+}
+
+.seq-btn:hover {
+  background: var(--bg-elevated);
+}
+
+.seq-btn.seq-pick {
+  border-color: var(--accent-green);
+  color: var(--status-success);
+}
+
+.seq-btn.seq-stop {
+  border-color: var(--accent-yellow);
+  color: var(--accent-yellow);
+}
+
+.seq-btn.seq-clear {
+  border-color: var(--accent-red);
+  color: var(--status-error);
+}
+
+.seq-warning {
+  margin-top: 8px;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 230, 0, 0.1);
+  color: var(--accent-yellow);
+  font-size: 0.8rem;
+  text-align: center;
+}

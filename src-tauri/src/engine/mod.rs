@@ -1,4 +1,5 @@
 pub mod failsafe;
+pub mod keyboard;
 pub mod mouse;
 pub mod rng;
 pub mod stats;
@@ -7,7 +8,14 @@ use crate::engine::mouse::VirtualScreenRect;
 use std::sync::atomic::AtomicI64;
 pub use worker::start_clicker;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SequenceTarget {
+    pub x: i32,
+    pub y: i32,
+    pub clicks: usize,
+}
+
+#[derive(Clone, Debug)]
 pub struct ClickerConfig {
     pub interval: f64,
     pub variation: f64,
@@ -36,6 +44,18 @@ pub struct ClickerConfig {
     pub edge_stop_bottom: i32,
     pub edge_stop_left: i32,
     pub high_cps_mode: bool,
+    pub input_type: i32,
+    pub key_code: u16,
+    pub key_token: String,
+    pub keyboard_uppercase: bool,
+    pub sequence_enabled: bool,
+    pub sequence_points: Vec<SequenceTarget>,
+}
+
+impl ClickerConfig {
+    pub fn use_sequence(&self) -> bool {
+        self.sequence_enabled && !self.sequence_points.is_empty()
+    }
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

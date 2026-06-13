@@ -12,11 +12,14 @@ use crate::ClickerStatusPayload;
 use crate::STATUS_EVENT;
 
 use super::failsafe::should_stop_for_failsafe;
+use super::keyboard::send_key_presses_cross_platform;
 use super::mouse::{get_button_flags, get_cursor_pos, move_mouse, send_clicks, smooth_move};
 use super::rng::SmallRng;
+use super::SequenceTarget;
 use super::ClickerConfig;
 use super::RunOutcome;
 use super::CLICK_COUNT;
+use crate::overlay::emit_sequence_points;
 
 #[cfg(target_os = "windows")]
 use super::NtSetTimerResolution;
@@ -128,6 +131,33 @@ pub fn start_clicker_inner(app: &AppHandle) -> Result<ClickerStatusPayload, Stri
 
     let settings = state.settings.lock().unwrap().clone();
     let config = build_config(&settings)?;
+
+    if config.input_type == 1 && config.key_code > 0 {
+        let hotkey_binding = state.registered_hotkey.lock().unwrap().clone();
+        if let Some(binding) = hotkey_binding {
+            if binding.main_vk == config.key_code as i32 {
+                let conflicts_with_plain_key =
+                    !binding.ctrl && !binding.alt && !binding.shift && !binding.super_key;
+                let conflicts_with_uppercase_key = config.keyboard_uppercase
+                    && binding.shift
+                    && !binding.ctrl
+                    && !binding.alt
+                    && !binding.super_key;
+                if conflicts_with_plain_key || conflicts_with_uppercase_key {
+                    return Err(String::from(
+                        "The auto-press key conflicts with your hotkey. \
+                         Use a modifier on the hotkey (e.g. Ctrl+key) or pick a different key.",
+                    ));
+                }
+            }
+        }
+    }
+
+    if config.use_sequence() {
+        state.active_sequence_index.store(0, Ordering::SeqCst);
+        state.active_sequence_tick.store(0, Ordering::SeqCst);
+    }
+
     let expected_generation = state.run_generation.fetch_add(1, Ordering::SeqCst) + 1;
     state.running.store(true, Ordering::SeqCst);
     let control = RunControl::new(app.clone(), expected_generation);
@@ -141,6 +171,9 @@ pub fn start_clicker_inner(app: &AppHandle) -> Result<ClickerStatusPayload, Stri
 
         let state = app_handle.state::<ClickerState>();
         state.running.store(false, Ordering::SeqCst);
+        state.active_sequence_index.store(-1, Ordering::SeqCst);
+        state.active_sequence_tick.store(0, Ordering::SeqCst);
+        emit_sequence_points(&app_handle);
 
         print_run_stats(outcome.click_count, outcome.elapsed_secs, outcome.avg_cpu);
 
@@ -163,6 +196,9 @@ pub fn stop_clicker_inner(
     let state = app.state::<ClickerState>();
     state.running.store(false, Ordering::SeqCst);
     state.run_generation.fetch_add(1, Ordering::SeqCst);
+    state.active_sequence_index.store(-1, Ordering::SeqCst);
+    state.active_sequence_tick.store(0, Ordering::SeqCst);
+    emit_sequence_points(app);
     if let Some(reason) = stop_reason {
         *state.stop_reason.lock().unwrap() = Some(reason);
     }
@@ -188,6 +224,29 @@ pub fn build_config(settings: &ClickerSettings) -> Result<ClickerConfig, String>
         "Middle" => 3,
         _ => 1,
     };
+
+    let is_keyboard = settings.input_type == "keyboard";
+    let key_result = if is_keyboard && !settings.keyboard_key.is_empty() {
+        Some(crate::hotkeys::parse_hotkey_main_key(
+            &settings.keyboard_key,
+            &settings.keyboard_key,
+        ))
+    } else {
+        None
+    };
+
+    let (key_code, key_token) = if is_keyboard {
+        match key_result {
+            Some(Ok((vk, token))) => (vk as u16, token),
+            Some(Err(e)) => return Err(format!("Unknown keyboard key: {e}")),
+            None => return Err(String::from("Keyboard mode requires a key to be selected")),
+        }
+    } else {
+        (0u16, String::new())
+    };
+
+    let keyboard_uppercase =
+        is_keyboard && settings.keyboard_key_case == "upper" && crate::engine::keyboard::is_alphabetic_vk(key_code);
 
     let time_limit_secs = if settings.time_limit_enabled {
         Some(match settings.time_limit_unit.as_str() {
@@ -244,6 +303,20 @@ pub fn build_config(settings: &ClickerSettings) -> Result<ClickerConfig, String>
         edge_stop_bottom: settings.edge_stop_bottom,
         edge_stop_left: settings.edge_stop_left,
         high_cps_mode: settings.high_cps_mode,
+        input_type: if is_keyboard { 1 } else { 0 },
+        key_code,
+        key_token,
+        keyboard_uppercase,
+        sequence_enabled: settings.sequence_enabled,
+        sequence_points: settings
+            .sequence_points
+            .iter()
+            .map(|point| crate::engine::SequenceTarget {
+                x: point.x,
+                y: point.y,
+                clicks: point.clicks.clamp(1, 100000) as usize,
+            })
+            .collect(),
     })
 }
 
@@ -251,12 +324,19 @@ pub fn current_status(app: &AppHandle) -> ClickerStatusPayload {
     let state = app.state::<ClickerState>();
     let last_error = state.last_error.lock().unwrap().clone();
     let stop_reason = state.stop_reason.lock().unwrap().clone();
+    let active_sequence_index = state.active_sequence_index.load(Ordering::SeqCst);
 
     ClickerStatusPayload {
         running: state.running.load(Ordering::SeqCst),
         click_count: get_click_count(),
         last_error,
         stop_reason,
+        active_sequence_index: if active_sequence_index >= 0 {
+            Some(active_sequence_index as usize)
+        } else {
+            None
+        },
+        active_sequence_tick: state.active_sequence_tick.load(Ordering::SeqCst),
     }
 }
 
@@ -280,6 +360,22 @@ pub fn now_epoch_ms() -> u64 {
         .unwrap_or(0)
 }
 
+fn current_cycle_target(config: &ClickerConfig, sequence_index: usize) -> SequenceTarget {
+    if config.use_sequence() {
+        let safe_index = sequence_index % config.sequence_points.len();
+        config.sequence_points[safe_index]
+    } else if config.position_enabled {
+        SequenceTarget {
+            x: config.pos_x,
+            y: config.pos_y,
+            clicks: 1,
+        }
+    } else {
+        let (x, y) = get_cursor_pos();
+        SequenceTarget { x, y, clicks: 1 }
+    }
+}
+
 pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
     CLICK_COUNT.store(0, Ordering::SeqCst);
 
@@ -294,7 +390,12 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
 
     let mut rng = SmallRng::new();
     let mut click_count: i64 = 0;
-    let (down_flag, up_flag) = get_button_flags(config.button);
+    let is_keyboard = config.input_type == 1 && config.key_code > 0;
+    let (down_flag, up_flag) = if is_keyboard {
+        (0u32, 0u32)
+    } else {
+        get_button_flags(config.button)
+    };
     let cps = if config.interval > 0.0 {
         1.0 / config.interval
     } else {
@@ -309,16 +410,34 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
     };
 
     let batch_interval = config.interval * batch_size as f64;
-    let has_position = config.position_enabled;
+    let has_position = config.use_sequence() || config.position_enabled;
     let use_smoothing = config.smoothing == 1 && cps < 50.0;
 
-    let mut target_x = config.pos_x;
-    let mut target_y = config.pos_y;
+    let mut sequence_index = 0usize;
+    let mut cycle_target = current_cycle_target(&config, sequence_index);
+    let mut sequence_clicks_remaining = cycle_target.clicks.max(1);
+    let (mut target_x, mut target_y) = if has_position {
+        (cycle_target.x, cycle_target.y)
+    } else {
+        get_cursor_pos()
+    };
+    let mut moved_sequence_index: Option<usize> = None;
     let mut next_batch_time = Instant::now();
     let mut stop_reason = String::from("Stopped");
 
     if has_position {
         move_mouse(target_x, target_y);
+        moved_sequence_index = Some(sequence_index);
+    }
+
+    if config.use_sequence() {
+        let state = control.app.state::<ClickerState>();
+        state
+            .active_sequence_index
+            .store(sequence_index as i64, Ordering::SeqCst);
+        state.active_sequence_tick.fetch_add(1, Ordering::SeqCst);
+        emit_status(&control.app);
+        emit_sequence_points(&control.app);
     }
 
     while control.is_active() {
@@ -337,42 +456,49 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
             break;
         }
 
-        let batch_duration = if config.variation > 0.0 {
-            let std_dev = batch_interval * (config.variation / 100.0);
-            rng.next_gaussian(batch_interval, std_dev)
-        } else {
-            batch_interval
-        };
-        let hold_ms = (config.interval * (config.duty.max(0.0) / 100.0) * 1000.0) as u32;
-
-        next_batch_time += Duration::from_secs_f64(batch_duration.max(0.001));
+        cycle_target = current_cycle_target(&config, sequence_index);
 
         if has_position {
-            if config.offset_chance <= 0.0 || rng.next_f64() * 100.0 <= config.offset_chance {
+            let (base_x, base_y) = (cycle_target.x, cycle_target.y);
+            if config.offset_chance > 0.0 && rng.next_f64() * 100.0 <= config.offset_chance {
                 let angle = rng.next_f64() * 2.0 * PI;
                 let radius = rng.next_f64().sqrt() * config.offset;
-                target_x = (config.pos_x as f64 + radius * angle.cos()) as i32;
-                target_y = (config.pos_y as f64 + radius * angle.sin()) as i32;
+                target_x = (base_x as f64 + radius * angle.cos()) as i32;
+                target_y = (base_y as f64 + radius * angle.sin()) as i32;
+            } else {
+                target_x = base_x;
+                target_y = base_y;
             }
 
-            if use_smoothing {
+            let should_move_to_target =
+                !config.use_sequence() || moved_sequence_index != Some(sequence_index) || config.offset > 0.0;
+
+            if use_smoothing && should_move_to_target {
                 let (cur_x, cur_y) = get_cursor_pos();
                 if cur_x != target_x || cur_y != target_y {
                     let smooth_dur =
-                        ((batch_duration * (0.2 + rng.next_f64() * 0.4)) * 1000.0) as u64;
+                        ((config.interval * (0.2 + rng.next_f64() * 0.4)) * 1000.0) as u64;
                     smooth_move(
                         cur_x,
                         cur_y,
                         target_x,
                         target_y,
-                        smooth_dur.clamp(15, 200),
+                        smooth_dur.clamp(1, 200),
                         &mut rng,
                     );
                 }
-            } else {
+                moved_sequence_index = Some(sequence_index);
+            } else if should_move_to_target {
                 move_mouse(target_x, target_y);
+                moved_sequence_index = Some(sequence_index);
             }
         }
+
+        let requested_cycles = if config.use_sequence() {
+            sequence_clicks_remaining.min(batch_size)
+        } else {
+            batch_size
+        };
 
         let remaining_clicks = if config.limit > 0 {
             (config.limit as i64 - click_count).max(0) as usize
@@ -383,7 +509,7 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
         let clicks_this_cycle = if config.double_click_enabled {
             remaining_clicks.min(2)
         } else {
-            remaining_clicks.min(batch_size)
+            remaining_clicks.min(requested_cycles)
         };
 
         if clicks_this_cycle == 0 {
@@ -391,15 +517,38 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
             break;
         }
 
-        send_clicks(
-            down_flag,
-            up_flag,
-            clicks_this_cycle,
-            hold_ms,
-            config.double_click_enabled,
-            config.double_click_delay_ms,
-            &control,
-        );
+        let batch_duration = if config.variation > 0.0 {
+            let std_dev = batch_interval * (config.variation / 100.0);
+            rng.next_gaussian(batch_interval, std_dev)
+        } else {
+            batch_interval
+        };
+        let hold_ms = (config.interval * (config.duty.max(0.0) / 100.0) * 1000.0) as u32;
+
+        next_batch_time += Duration::from_secs_f64(batch_duration.max(0.001));
+
+        if is_keyboard {
+            send_key_presses_cross_platform(
+                config.key_code,
+                &config.key_token,
+                clicks_this_cycle,
+                hold_ms,
+                config.double_click_enabled,
+                config.double_click_delay_ms,
+                config.keyboard_uppercase,
+                &control,
+            );
+        } else {
+            send_clicks(
+                down_flag,
+                up_flag,
+                clicks_this_cycle,
+                hold_ms,
+                config.double_click_enabled,
+                config.double_click_delay_ms,
+                &control,
+            );
+        }
 
         if !control.is_active() {
             break;
@@ -411,6 +560,22 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
         let remaining = next_batch_time.saturating_duration_since(Instant::now());
         if remaining > Duration::ZERO {
             sleep_interruptible(remaining, &control);
+        }
+
+        if config.use_sequence() {
+            sequence_clicks_remaining =
+                sequence_clicks_remaining.saturating_sub(clicks_this_cycle);
+            if sequence_clicks_remaining == 0 {
+                sequence_index = (sequence_index + 1) % config.sequence_points.len();
+                sequence_clicks_remaining = config.sequence_points[sequence_index].clicks.max(1);
+                let state = control.app.state::<ClickerState>();
+                state
+                    .active_sequence_index
+                    .store(sequence_index as i64, Ordering::SeqCst);
+                state.active_sequence_tick.fetch_add(1, Ordering::SeqCst);
+                emit_status(&control.app);
+                emit_sequence_points(&control.app);
+            }
         }
     }
 

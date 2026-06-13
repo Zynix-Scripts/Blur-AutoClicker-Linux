@@ -123,6 +123,11 @@ pub fn show_overlay(app: &AppHandle) -> Result<(), String> {
 }
 
 pub fn check_auto_hide(app: &AppHandle) {
+    let state = app.state::<ClickerState>();
+    if state.sequence_pick_active.load(Ordering::SeqCst) {
+        return;
+    }
+
     let mut last = LAST_ZONE_SHOW.lock().unwrap();
     if let Some(instant) = *last {
         if instant.elapsed() >= Duration::from_secs(3) {
@@ -159,6 +164,171 @@ pub fn hide_overlay(app: AppHandle) -> Result<(), String> {
             let _ = window.hide();
         }
     }
+    Ok(())
+}
+
+fn sequence_point_payload(app: &AppHandle, active_index: Option<usize>) -> serde_json::Value {
+    let state = app.state::<ClickerState>();
+    let settings = state.settings.lock().unwrap();
+    serde_json::json!({
+        "points": settings.sequence_points.iter().map(|p| serde_json::json!({
+            "x": p.x,
+            "y": p.y,
+        })).collect::<Vec<_>>(),
+        "activeIndex": active_index.map(|i| i as i64).unwrap_or(-1),
+    })
+}
+
+pub fn emit_sequence_points(app: &AppHandle) {
+    let state = app.state::<ClickerState>();
+    let active_index = state.active_sequence_index.load(Ordering::SeqCst);
+    let active = if active_index >= 0 {
+        Some(active_index as usize)
+    } else {
+        None
+    };
+    if let Some(window) = app.get_webview_window("overlay") {
+        let _ = window.emit("sequence-points", sequence_point_payload(app, active));
+    }
+}
+
+#[tauri::command]
+pub fn start_sequence_pick(app: AppHandle) -> Result<(), String> {
+    let state = app.state::<ClickerState>();
+    let window = app
+        .get_webview_window("overlay")
+        .ok_or_else(|| "Overlay window not found".to_string())?;
+
+    let bounds = current_virtual_screen_rect()
+        .ok_or_else(|| "Virtual screen bounds not available".to_string())?;
+
+    #[cfg(target_os = "windows")]
+    {
+        sync_overlay_bounds(&window)?;
+        show_overlay_window(&window)?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let visible = window.is_visible().unwrap_or(false);
+        if !visible {
+            let _ = window.show();
+        }
+        // Pick mode needs to receive clicks, so disable click-through.
+        OVERLAY_CLICK_THROUGH_SET.store(false, Ordering::SeqCst);
+        let _ = window.set_ignore_cursor_events(false);
+    }
+
+    state.sequence_pick_active.store(true, Ordering::SeqCst);
+
+    let _ = window.emit(
+        "sequence-pick-data",
+        serde_json::json!({
+            "bounds": {
+                "x": bounds.left,
+                "y": bounds.top,
+                "width": bounds.width,
+                "height": bounds.height,
+            },
+            "points": state.settings.lock().unwrap().sequence_points.iter().map(|p| serde_json::json!({
+                "x": p.x,
+                "y": p.y,
+            })).collect::<Vec<_>>(),
+        }),
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn stop_sequence_pick(app: AppHandle) -> Result<(), String> {
+    let state = app.state::<ClickerState>();
+    state.sequence_pick_active.store(false, Ordering::SeqCst);
+
+    if let Some(window) = app.get_webview_window("overlay") {
+        #[cfg(target_os = "linux")]
+        {
+            OVERLAY_CLICK_THROUGH_SET.store(true, Ordering::SeqCst);
+            let _ = window.set_ignore_cursor_events(true);
+        }
+        let _ = window.hide();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn sequence_point_picked(
+    app: AppHandle,
+    x: i32,
+    y: i32,
+    is_final: bool,
+) -> Result<(), String> {
+    let state = app.state::<ClickerState>();
+    {
+        let mut settings = state.settings.lock().unwrap();
+        settings.sequence_points.push(crate::settings::SequencePoint {
+            id: format!("seq-{}", uuid::Uuid::new_v4()),
+            x,
+            y,
+            clicks: 1,
+        });
+    }
+
+    crate::ui_commands::notify_settings_changed(&app);
+    emit_sequence_points(&app);
+
+    if is_final {
+        let _ = stop_sequence_pick(app);
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn remove_sequence_point(app: AppHandle, index: usize) -> Result<(), String> {
+    let state = app.state::<ClickerState>();
+    {
+        let mut settings = state.settings.lock().unwrap();
+        if index < settings.sequence_points.len() {
+            settings.sequence_points.remove(index);
+        }
+    }
+    crate::ui_commands::notify_settings_changed(&app);
+    emit_sequence_points(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_sequence_point(
+    app: AppHandle,
+    index: usize,
+    x: i32,
+    y: i32,
+    clicks: u32,
+) -> Result<(), String> {
+    let state = app.state::<ClickerState>();
+    {
+        let mut settings = state.settings.lock().unwrap();
+        if let Some(point) = settings.sequence_points.get_mut(index) {
+            point.x = x;
+            point.y = y;
+            point.clicks = clicks.clamp(1, 100000);
+        }
+    }
+    crate::ui_commands::notify_settings_changed(&app);
+    emit_sequence_points(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn clear_sequence_points(app: AppHandle) -> Result<(), String> {
+    let state = app.state::<ClickerState>();
+    {
+        let mut settings = state.settings.lock().unwrap();
+        settings.sequence_points.clear();
+    }
+    crate::ui_commands::notify_settings_changed(&app);
+    emit_sequence_points(&app);
     Ok(())
 }
 

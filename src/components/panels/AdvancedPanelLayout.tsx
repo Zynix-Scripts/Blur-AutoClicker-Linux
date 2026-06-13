@@ -10,7 +10,10 @@ import {
   type ReactNode,
 } from "react";
 import type { Settings } from "../../store";
+import { isAlphabeticKeyboardKey } from "../../keyboardKeyCase";
 import HotkeyCaptureInput from "../HotkeyCaptureInput";
+import KeyCaptureInput from "../KeyCaptureInput";
+import SequenceSection from "./advanced/SequenceSection";
 import React from "react";
 
 interface Props {
@@ -19,6 +22,7 @@ interface Props {
   on_pick_position: () => Promise<void>;
   compact: boolean;
   show_explanations: boolean;
+  activeSequenceIndex: number | null;
 }
 
 function ToggleBtn({
@@ -171,6 +175,7 @@ export default function AdvancedPanelLayout({
   on_pick_position,
   compact,
   show_explanations,
+  activeSequenceIndex,
 }: Props) {
   const [picking_position, set_picking_position] = useState(false);
   const [pick_countdown, set_pick_countdown] = useState<number | null>(null);
@@ -269,18 +274,63 @@ export default function AdvancedPanelLayout({
                 </div>
               </div>
               <div className="adv-row" style={{ marginTop: row_spacing }}>
-                <span className="adv-label">Mouse Button</span>
+                <span className="adv-label">Target</span>
                 <div className="simple-seg-group">
-                  {(["Left", "Middle", "Right"] as const).map((b) => (
+                  {(["mouse", "keyboard"] as const).map((t) => (
                     <button
-                      key={b}
-                      className={`simple-seg-btn ${settings.mouseButton === b ? "active" : ""}`}
-                      onClick={() => update({ mouseButton: b })}
+                      key={t}
+                      className={`simple-seg-btn ${settings.inputType === t ? "active" : ""}`}
+                      onClick={() => update({ inputType: t })}
                     >
-                      {b}
+                      {t === "keyboard" ? "Key" : "Mouse"}
                     </button>
                   ))}
                 </div>
+                {settings.inputType === "mouse" ? (
+                  <div className="simple-seg-group">
+                    {(["Left", "Middle", "Right"] as const).map((b) => (
+                      <button
+                        key={b}
+                        className={`simple-seg-btn ${settings.mouseButton === b ? "active" : ""}`}
+                        onClick={() => update({ mouseButton: b })}
+                      >
+                        {b}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="adv-row" style={{ gap: 4 }}>
+                    <KeyCaptureInput
+                      className="adv-textbox-text"
+                      value={settings.keyboardKey}
+                      onChange={(keyboardKey) => update({ keyboardKey })}
+                      keyboardKeyCase={settings.keyboardKeyCase}
+                      onMouseButtonCapture={(mouseButton) =>
+                        update({ inputType: "mouse", mouseButton })
+                      }
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        outline: "none",
+                        width: "90px",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className={`simple-seg-btn ${isAlphabeticKeyboardKey(settings.keyboardKey) ? "" : "disabled"}`}
+                      onClick={() =>
+                        update({
+                          keyboardKeyCase:
+                            settings.keyboardKeyCase === "upper" ? "lower" : "upper",
+                        })
+                      }
+                      disabled={!isAlphabeticKeyboardKey(settings.keyboardKey)}
+                      title="Toggle uppercase / lowercase"
+                    >
+                      {settings.keyboardKeyCase === "upper" ? "↑" : "↓"}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -390,6 +440,12 @@ export default function AdvancedPanelLayout({
                 </div>
               </Disableable>
             </div>
+
+            <SequenceSection
+              settings={settings}
+              update={update}
+              activeSequenceIndex={activeSequenceIndex}
+            />
           </div>
 
           <div className="advanced-col">
@@ -736,18 +792,63 @@ export default function AdvancedPanelLayout({
               </div>
             </div>
             <div className="adv-row" style={{ marginTop: row_spacing }}>
-              <span className="adv-label">Mouse Button</span>
+              <span className="adv-label">Target</span>
               <div className="simple-seg-group">
-                {(["Left", "Middle", "Right"] as const).map((b) => (
+                {(["mouse", "keyboard"] as const).map((t) => (
                   <button
-                    key={b}
-                    className={`simple-seg-btn ${settings.mouseButton === b ? "active" : ""}`}
-                    onClick={() => update({ mouseButton: b })}
+                    key={t}
+                    className={`simple-seg-btn ${settings.inputType === t ? "active" : ""}`}
+                    onClick={() => update({ inputType: t })}
                   >
-                    {b}
+                    {t === "keyboard" ? "Key" : "Mouse"}
                   </button>
                 ))}
               </div>
+              {settings.inputType === "mouse" ? (
+                <div className="simple-seg-group">
+                  {(["Left", "Middle", "Right"] as const).map((b) => (
+                    <button
+                      key={b}
+                      className={`simple-seg-btn ${settings.mouseButton === b ? "active" : ""}`}
+                      onClick={() => update({ mouseButton: b })}
+                    >
+                      {b}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="adv-row" style={{ gap: 4 }}>
+                  <KeyCaptureInput
+                    className="adv-textbox-text"
+                    value={settings.keyboardKey}
+                    onChange={(keyboardKey) => update({ keyboardKey })}
+                    keyboardKeyCase={settings.keyboardKeyCase}
+                    onMouseButtonCapture={(mouseButton) =>
+                      update({ inputType: "mouse", mouseButton })
+                    }
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      outline: "none",
+                      width: "70px",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className={`simple-seg-btn ${isAlphabeticKeyboardKey(settings.keyboardKey) ? "" : "disabled"}`}
+                    onClick={() =>
+                      update({
+                        keyboardKeyCase:
+                          settings.keyboardKeyCase === "upper" ? "lower" : "upper",
+                      })
+                    }
+                    disabled={!isAlphabeticKeyboardKey(settings.keyboardKey)}
+                    title="Toggle uppercase / lowercase"
+                  >
+                    {settings.keyboardKeyCase === "upper" ? "↑" : "↓"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -848,6 +949,12 @@ export default function AdvancedPanelLayout({
               </div>
             </Disableable>
           </div>
+
+          <SequenceSection
+            settings={settings}
+            update={update}
+            activeSequenceIndex={activeSequenceIndex}
+          />
 
           <div className="adv-compact-three-grid">
             <div className="sectioncontainer adv-compact-card">

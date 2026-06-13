@@ -13,7 +13,7 @@ use crate::app_state::ClickerStatusPayload;
 use crate::engine::worker::emit_status;
 use crate::hotkeys::register_hotkey_inner;
 use crate::hotkeys::start_hotkey_listener;
-use std::sync::atomic::{AtomicBool, AtomicU64};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64};
 use std::sync::{Arc, Mutex};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -33,10 +33,13 @@ pub fn run() {
             settings: Mutex::new(ClickerSettings::default()),
             last_error: Mutex::new(None),
             stop_reason: Mutex::new(None),
+            active_sequence_index: AtomicI64::new(-1),
+            active_sequence_tick: AtomicU64::new(0),
             registered_hotkey: Mutex::new(None),
             suppress_hotkey_until_ms: AtomicU64::new(0),
             suppress_hotkey_until_release: AtomicBool::new(false),
             hotkey_capture_active: AtomicBool::new(false),
+            sequence_pick_active: AtomicBool::new(false),
             settings_initialized: AtomicBool::new(false),
         })
         .setup(|app| {
@@ -184,6 +187,12 @@ pub fn run() {
             ui_commands::reset_stats,
             updates::update_checker::check_for_updates,
             overlay::hide_overlay,
+            overlay::start_sequence_pick,
+            overlay::stop_sequence_pick,
+            overlay::sequence_point_picked,
+            overlay::remove_sequence_point,
+            overlay::update_sequence_point,
+            overlay::clear_sequence_points,
             system_check::check_system_deps,
         ])
         .build(tauri::generate_context!())

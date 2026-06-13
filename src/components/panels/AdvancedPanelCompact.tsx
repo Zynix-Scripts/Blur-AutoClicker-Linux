@@ -5,12 +5,14 @@ interface Props {
   settings: Settings;
   update: (patch: Partial<Settings>) => void;
   on_pick_position: () => Promise<void>;
+  activeSequenceIndex: number | null;
 }
 
 export default function AdvancedPanelCompact({
   settings,
   update,
   on_pick_position,
+  activeSequenceIndex,
 }: Props) {
   return (
     <AdvancedPanelLayout
@@ -19,6 +21,7 @@ export default function AdvancedPanelCompact({
       on_pick_position={on_pick_position}
       compact
       show_explanations={false}
+      activeSequenceIndex={activeSequenceIndex}
     />
   );
 }

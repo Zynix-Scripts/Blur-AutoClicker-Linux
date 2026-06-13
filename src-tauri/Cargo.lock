@@ -27,6 +27,7 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-plugin-updater",
  "tokio",
+ "uuid",
  "windows-sys 0.52.0",
  "windows-targets 0.48.5",
  "winreg 0.52.0",

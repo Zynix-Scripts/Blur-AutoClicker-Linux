@@ -140,6 +140,12 @@ mod tests {
             edge_stop_bottom: 40,
             edge_stop_left: 40,
             high_cps_mode: false,
+            input_type: 0,
+            key_code: 0,
+            key_token: String::new(),
+            keyboard_uppercase: false,
+            sequence_enabled: false,
+            sequence_points: Vec::new(),
         }
     }
 

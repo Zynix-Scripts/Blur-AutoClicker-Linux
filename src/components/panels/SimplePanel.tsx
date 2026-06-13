@@ -1,5 +1,7 @@
 import type { Settings } from "../../store";
+import { isAlphabeticKeyboardKey } from "../../keyboardKeyCase";
 import HotkeyCaptureInput from "../HotkeyCaptureInput";
+import KeyCaptureInput from "../KeyCaptureInput";
 import "./Modes.css";
 import "./SimplePanel.css";
 
@@ -18,6 +20,7 @@ const INTERVAL_OPTIONS = [
 
 const MODE_OPTIONS = ["Toggle", "Hold"] as const;
 const MOUSE_BUTTON_OPTIONS = ["Left", "Middle", "Right"] as const;
+const INPUT_TYPE_OPTIONS = ["mouse", "keyboard"] as const;
 
 export default function SimplePanel({ settings, update }: SimplePanelProps) {
   const normalize_raw = (raw: string) => raw.replace(/^0+(?=\d)/, "");
@@ -56,6 +59,16 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
     e.preventDefault();
     e.stopPropagation();
     apply();
+  };
+
+  const canToggleKeyboardKeyCase = isAlphabeticKeyboardKey(settings.keyboardKey);
+  const keyboardKeyCaseIsUpper = settings.keyboardKeyCase === "upper";
+
+  const toggleKeyboardKeyCase = () => {
+    if (!canToggleKeyboardKeyCase) return;
+    update({
+      keyboardKeyCase: keyboardKeyCaseIsUpper ? "lower" : "upper",
+    });
   };
 
   const handle_wheel_step = (
@@ -220,13 +233,13 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
           <button
             type="button"
             className="simple-cycle-btn"
-            title="Select which mouse button gets clicked"
+            title="Switch between mouse click and keyboard key"
             onClick={(e) =>
               cycle_with_click(e, () =>
                 update({
-                  mouseButton: cycle_option(
-                    MOUSE_BUTTON_OPTIONS,
-                    settings.mouseButton,
+                  inputType: cycle_option(
+                    INPUT_TYPE_OPTIONS,
+                    settings.inputType,
                     1,
                   ),
                 }),
@@ -235,23 +248,81 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
             onContextMenu={(e) =>
               cycle_with_click(e, () =>
                 update({
-                  mouseButton: cycle_option(
-                    MOUSE_BUTTON_OPTIONS,
-                    settings.mouseButton,
+                  inputType: cycle_option(
+                    INPUT_TYPE_OPTIONS,
+                    settings.inputType,
                     -1,
                   ),
                 }),
               )
             }
           >
-            {
-              {
-                Left: "Left Click",
-                Middle: "Middle Click",
-                Right: "Right Click",
-              }[settings.mouseButton]
-            }
+            {settings.inputType === "keyboard" ? "Key" : "Mouse"}
           </button>
+          <div className="vertical-devider" />
+          {settings.inputType === "mouse" ? (
+            <button
+              type="button"
+              className="simple-cycle-btn"
+              title="Select which mouse button gets clicked"
+              onClick={(e) =>
+                cycle_with_click(e, () =>
+                  update({
+                    mouseButton: cycle_option(
+                      MOUSE_BUTTON_OPTIONS,
+                      settings.mouseButton,
+                      1,
+                    ),
+                  }),
+                )
+              }
+              onContextMenu={(e) =>
+                cycle_with_click(e, () =>
+                  update({
+                    mouseButton: cycle_option(
+                      MOUSE_BUTTON_OPTIONS,
+                      settings.mouseButton,
+                      -1,
+                    ),
+                  }),
+                )
+              }
+            >
+              {
+                {
+                  Left: "Left Click",
+                  Middle: "Middle Click",
+                  Right: "Right Click",
+                }[settings.mouseButton]
+              }
+            </button>
+          ) : (
+            <>
+              <KeyCaptureInput
+                className="simple-inline-input"
+                value={settings.keyboardKey}
+                onChange={(keyboardKey) => update({ keyboardKey })}
+                keyboardKeyCase={settings.keyboardKeyCase}
+                onMouseButtonCapture={(mouseButton) =>
+                  update({ inputType: "mouse", mouseButton })
+                }
+                style={{ width: "90px" }}
+              />
+              <button
+                type="button"
+                className={`simple-cycle-btn ${canToggleKeyboardKeyCase ? "" : "disabled"}`}
+                title="Toggle uppercase / lowercase"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleKeyboardKeyCase();
+                }}
+                disabled={!canToggleKeyboardKeyCase}
+              >
+                {keyboardKeyCaseIsUpper ? "↑" : "↓"}
+              </button>
+            </>
+          )}
         </div>
 
         <div className="InputBox">

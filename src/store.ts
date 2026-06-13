@@ -8,14 +8,29 @@ export const APP_VERSION = await getVersion();
 export type SavedPanel = "simple" | "advanced";
 export type ExplanationMode = "off" | "text";
 export type Theme = "dark" | "oled" | "catppuccin-mocha" | "light" | "nord" | "gruvbox-dark" | "tokyo-night";
+export type InputType = "mouse" | "keyboard";
+export type KeyboardKeyCase = "lower" | "upper";
+export type MouseButton = "Left" | "Middle" | "Right";
+
+export interface SequencePoint {
+  id: string;
+  x: number;
+  y: number;
+  clicks: number;
+}
 
 export interface Settings {
   version: string;
   clickSpeed: number;
   clickInterval: "s" | "m" | "h" | "d";
+  inputType: InputType;
+  keyboardKey: string;
+  keyboardKeyCase: KeyboardKeyCase;
   mouseButton: "Left" | "Middle" | "Right";
   hotkey: string;
   mode: "Toggle" | "Hold";
+  sequenceEnabled: boolean;
+  sequencePoints: SequencePoint[];
   dutyCycleEnabled: boolean;
   dutyCycle: number;
   speedVariationEnabled: boolean;
@@ -63,6 +78,8 @@ export interface ClickerStatus {
   clickCount: number;
   lastError: string | null;
   stopReason: string | null;
+  activeSequenceIndex: number | null;
+  activeSequenceTick: number;
 }
 
 export interface AppInfo {
@@ -75,9 +92,14 @@ export const DEFAULT_SETTINGS: Settings = {
   version: APP_VERSION,
   clickSpeed: 25,
   clickInterval: "s",
+  inputType: "mouse",
+  keyboardKey: "",
+  keyboardKeyCase: "lower",
   mouseButton: "Left",
   hotkey: "ctrl+y",
   mode: "Toggle",
+  sequenceEnabled: false,
+  sequencePoints: [],
   dutyCycleEnabled: true,
   dutyCycle: 45,
   speedVariationEnabled: true,
@@ -122,6 +144,47 @@ export const DEFAULT_SETTINGS: Settings = {
 
 function sanitize_saved_panel(value: unknown): SavedPanel {
   return value === "advanced" ? value : "simple";
+}
+
+function sanitize_input_type(value: unknown): InputType {
+  return value === "keyboard" ? "keyboard" : "mouse";
+}
+
+function sanitize_keyboard_key_case(value: unknown): KeyboardKeyCase {
+  return value === "upper" ? "upper" : "lower";
+}
+
+function sanitize_sequence_points(value: unknown): SequencePoint[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((point) => {
+      if (!point || typeof point !== "object") return null;
+      const candidate = point as Partial<SequencePoint>;
+      const id =
+        typeof candidate.id === "string" && candidate.id.trim()
+          ? candidate.id.trim()
+          : `seq-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const x =
+        typeof candidate.x === "number" && Number.isFinite(candidate.x)
+          ? Math.trunc(candidate.x)
+          : null;
+      const y =
+        typeof candidate.y === "number" && Number.isFinite(candidate.y)
+          ? Math.trunc(candidate.y)
+          : null;
+      const clicks =
+        typeof candidate.clicks === "number" && Number.isFinite(candidate.clicks)
+          ? Math.trunc(candidate.clicks)
+          : 1;
+      if (x === null || y === null) return null;
+      return {
+        id,
+        x,
+        y,
+        clicks: Math.min(Math.max(clicks, 1), 100000),
+      };
+    })
+    .filter((point): point is SequencePoint => point !== null);
 }
 
 function sanitize_explanation_mode(
@@ -174,6 +237,14 @@ function sanitize_settings(input?: Partial<Settings> | null): Settings {
     ...DEFAULT_SETTINGS,
     ...saved,
     version: APP_VERSION,
+    inputType: sanitize_input_type(saved.inputType),
+    keyboardKey: typeof saved.keyboardKey === "string" ? saved.keyboardKey : "",
+    keyboardKeyCase: sanitize_keyboard_key_case(saved.keyboardKeyCase),
+    sequenceEnabled: sanitize_boolean(
+      saved.sequenceEnabled,
+      DEFAULT_SETTINGS.sequenceEnabled,
+    ),
+    sequencePoints: sanitize_sequence_points(saved.sequencePoints),
     clickSpeed: clamp_number(
       saved.clickSpeed,
       DEFAULT_SETTINGS.clickSpeed,

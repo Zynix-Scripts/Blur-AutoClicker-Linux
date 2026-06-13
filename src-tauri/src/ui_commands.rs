@@ -1,7 +1,5 @@
 use std::sync::atomic::Ordering;
-use tauri::Manager;
-
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::app_state::AppInfoPayload;
 use crate::app_state::PositionPayload;
@@ -16,6 +14,12 @@ use crate::engine::worker::now_epoch_ms;
 use crate::engine::worker::start_clicker_inner;
 use crate::engine::worker::stop_clicker_inner;
 use crate::hotkeys::register_hotkey_inner;
+
+pub fn notify_settings_changed(app: &AppHandle) {
+    let state = app.state::<ClickerState>();
+    let settings = state.settings.lock().unwrap().clone();
+    let _ = app.emit("settings-changed", settings);
+}
 
 
 #[tauri::command]

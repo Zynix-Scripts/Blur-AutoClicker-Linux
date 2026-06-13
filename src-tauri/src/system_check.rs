@@ -8,6 +8,7 @@ pub struct SystemDepsInfo {
     pub uinput_module_loaded: bool,
     pub is_root: bool,
     pub mouse_backend: String,
+    pub keyboard_backend: String,
     pub warnings: Vec<String>,
 }
 
@@ -22,6 +23,7 @@ pub fn check_system_deps() -> SystemDepsInfo {
             uinput_module_loaded: true,
             is_root: false,
             mouse_backend: "n/a".to_string(),
+            keyboard_backend: "n/a".to_string(),
             warnings: vec![],
         }
     }
@@ -52,6 +54,7 @@ fn check_linux() -> SystemDepsInfo {
     let in_input_group = is_in_input_group();
 
     let mouse_backend = crate::engine::mouse::linux_mouse_diagnostic();
+    let keyboard_backend = crate::engine::keyboard::keyboard_diagnostic();
 
     let mut warnings: Vec<String> = Vec::new();
 
@@ -60,7 +63,7 @@ fn check_linux() -> SystemDepsInfo {
         log::info!("[SystemCheck] X11 detected - autoclicker uses XTEST (full feature set)");
     }
     if has_wayland && !has_x11 {
-        log::info!("[SystemCheck] Pure Wayland detected - autoclicker uses uinput (clicking works; position pick and always-on-top are limited)");
+        log::info!("[SystemCheck] Pure Wayland detected - autoclicker uses uinput (clicking and keyboard auto-press work; sequence picker works via overlay; position pick and always-on-top are limited)");
     }
 
     if !has_x11 {
@@ -102,6 +105,7 @@ fn check_linux() -> SystemDepsInfo {
         uinput_module_loaded,
         is_root,
         mouse_backend,
+        keyboard_backend,
         warnings,
     }
 }
