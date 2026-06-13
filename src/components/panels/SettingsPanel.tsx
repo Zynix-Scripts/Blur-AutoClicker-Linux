@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import ConfirmDialog from "../ConfirmDialog";
 
 interface CumulativeStats {
   totalClicks: number;
@@ -79,6 +80,9 @@ export default function SettingsPanel({
   const [stats, set_stats] = useState<CumulativeStats | null>(null);
   const [at_bottom, set_at_bottom] = useState(false);
   const [active_tab, set_active_tab] = useState<TabKey>("general");
+  const [pending_action, set_pending_action] = useState<
+    "reset-settings" | "clear-stats" | null
+  >(null);
 
   const panel_ref = useRef<HTMLDivElement>(null);
   const prev_running = useRef(false);
@@ -139,17 +143,21 @@ export default function SettingsPanel({
   }, [stats, has_stats]);
 
   const handle_reset_stats = () => {
-    if (
-      !window.confirm(
-        "Are you sure you want to reset all stats? This cannot be undone."
-      )
-    ) {
-      return;
-    }
+    set_pending_action("clear-stats");
+  };
+
+  const confirm_reset_stats = () => {
+    set_pending_action(null);
     set_resetting_stats(true);
     invoke<CumulativeStats>("reset_stats")
       .then(set_stats)
       .finally(() => set_resetting_stats(false));
+  };
+
+  const confirm_reset_settings = () => {
+    set_pending_action(null);
+    set_resetting(true);
+    onReset().finally(() => set_resetting(false));
   };
 
   return (
@@ -197,6 +205,72 @@ export default function SettingsPanel({
 
               <div className="settings-row">
                 <div className="settings-label-group">
+                  <span className="settings-label">Minimize to Tray</span>
+                  <span className="settings-sublabel">
+                    Keep the app running in the system tray when the window is
+                    closed.
+                  </span>
+                </div>
+                <div className="settings-seg-group">
+                  {["On", "Off"].map((o) => (
+                    <button
+                      key={o}
+                      className={`settings-seg-btn ${(settings.minimizeToTray ? "On" : "Off") === o ? "active" : ""}`}
+                      onClick={() => update({ minimizeToTray: o === "On" })}
+                    >
+                      {o}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="settings-divider" />
+
+              <div className="settings-row">
+                <div className="settings-label-group">
+                  <span className="settings-label">1000 CPS Mode</span>
+                  <span className="settings-sublabel">
+                    Allows setting click speed up to 1000 CPS. High speeds may
+                    increase CPU usage and may not be accurate on all systems.
+                  </span>
+                </div>
+                <div className="settings-seg-group">
+                  {["On", "Off"].map((o) => (
+                    <button
+                      key={o}
+                      className={`settings-seg-btn ${(settings.highCpsMode ? "On" : "Off") === o ? "active" : ""}`}
+                      onClick={() => {
+                        if (o === "On") {
+                          if (
+                            !settings.dismissedWarnings.includes("high-cps")
+                          ) {
+                            const confirm = window.confirm(
+                              "1000 CPS mode allows very high click speeds. This can increase CPU usage and may not be accurate on all systems. Enable anyway?",
+                            );
+                            if (!confirm) return;
+                            update({
+                              highCpsMode: true,
+                              dismissedWarnings: [
+                                ...settings.dismissedWarnings,
+                                "high-cps",
+                              ],
+                            });
+                            return;
+                          }
+                        }
+                        update({ highCpsMode: o === "On" });
+                      }}
+                    >
+                      {o}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="settings-divider" />
+
+              <div className="settings-row">
+                <div className="settings-label-group">
                   <span className="settings-label">Reset All Settings</span>
                   <span className="settings-sublabel">
                     Will reset all input fields and settings to the Defaults.
@@ -204,10 +278,7 @@ export default function SettingsPanel({
                 </div>
                 <button
                   className="settings-btn-danger"
-                  onClick={() => {
-                    set_resetting(true);
-                    onReset().finally(() => set_resetting(false));
-                  }}
+                  onClick={() => set_pending_action("reset-settings")}
                 >
                   {resetting ? "Resetting..." : "Reset"}
                 </button>
@@ -450,6 +521,23 @@ export default function SettingsPanel({
           className={`settings-fade ${at_bottom ? "settings-fade--hidden" : ""}`}
         />
       </div>
+
+      <ConfirmDialog
+        open={pending_action === "reset-settings"}
+        title="Reset all settings?"
+        message="This will restore all settings to their defaults. Your saved stats will not be affected."
+        confirmLabel="Reset"
+        onConfirm={confirm_reset_settings}
+        onCancel={() => set_pending_action(null)}
+      />
+      <ConfirmDialog
+        open={pending_action === "clear-stats"}
+        title="Clear all stats?"
+        message="Are you sure you want to reset all stats? This cannot be undone."
+        confirmLabel="Clear"
+        onConfirm={confirm_reset_stats}
+        onCancel={() => set_pending_action(null)}
+      />
     </div>
   );
 }

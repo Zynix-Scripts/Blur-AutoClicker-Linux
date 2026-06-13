@@ -32,6 +32,7 @@ pub struct ClickerConfig {
     pub edge_stop_right: i32,
     pub edge_stop_bottom: i32,
     pub edge_stop_left: i32,
+    pub high_cps_mode: bool,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

@@ -47,6 +47,8 @@ export interface Settings {
   showStopReason: boolean;
   showStopOverlay: boolean;
   strictHotkeyModifiers: boolean;
+  minimizeToTray: boolean;
+  highCpsMode: boolean;
   theme: Theme;
   dismissedWarnings: string[];
 }
@@ -102,6 +104,8 @@ export const DEFAULT_SETTINGS: Settings = {
   showStopReason: true,
   showStopOverlay: true,
   strictHotkeyModifiers: false,
+  minimizeToTray: false,
+  highCpsMode: false,
   theme: "dark",
   dismissedWarnings: [],
 };
@@ -164,7 +168,7 @@ function sanitize_settings(input?: Partial<Settings> | null): Settings {
       saved.clickSpeed,
       DEFAULT_SETTINGS.clickSpeed,
       1,
-      500,
+      saved.highCpsMode ? 1000 : 500,
     ),
     dutyCycleEnabled: sanitize_boolean(
       saved.dutyCycleEnabled,

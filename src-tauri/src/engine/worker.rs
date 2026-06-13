@@ -236,6 +236,7 @@ pub fn build_config(settings: &ClickerSettings) -> Result<ClickerConfig, String>
         edge_stop_right: settings.edge_stop_right,
         edge_stop_bottom: settings.edge_stop_bottom,
         edge_stop_left: settings.edge_stop_left,
+        high_cps_mode: settings.high_cps_mode,
     })
 }
 
@@ -292,7 +293,9 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
     } else {
         0.0
     };
-    let batch_size = if !config.double_click_enabled && cps >= 50.0 {
+    let batch_size = if !config.double_click_enabled && config.high_cps_mode && cps > 500.0 {
+        3usize
+    } else if !config.double_click_enabled && cps >= 50.0 {
         2usize
     } else {
         1usize
