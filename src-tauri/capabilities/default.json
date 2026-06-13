@@ -26,7 +26,7 @@
     "store:allow-save",
     "store:allow-set",
 
-    "shell:allow-open",
+    "opener:default",
     "process:default",
     "updater:default",
 

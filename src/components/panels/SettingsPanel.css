@@ -1,7 +1,8 @@
 .settings-panel {
   display: flex;
   flex-direction: column;
-  padding: 0.25rem 1.25rem;
+  gap: 0.75rem;
+  padding: 0.25rem 0.75rem 1rem;
   height: 100%;
   overflow-y: auto;
 }
@@ -12,33 +13,38 @@
   border-radius: 0.5rem;
 }
 
-
 .settings-panel::-webkit-scrollbar-thumb {
   background: var(--text-dim);
   border-radius: 0.25rem;
 }
+
 .settings-panel::-webkit-scrollbar-thumb:hover {
   background: #777;
 }
 
-.settings-row {
+.settings-section-heading {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  padding: 0.75rem 0;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0 0 0.25rem;
 }
 
-.settings-divider {
-  width: 100%;
-  height: 1px;
-  background: var(--border-subtle);
-  flex-shrink: 0;
+.settings-section-title {
+  font-family: var(--font-family-base);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-li);
+  color: var(--text-muted);
+}
+
+.settings-section-description {
+  font-family: var(--font-family-base);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-li);
+  color: var(--text-dim);
 }
 
 .settings-label {
-  font-family: 'DMSans', sans-serif;
+  font-family: var(--font-family-base);
   font-size: 1rem;
   font-weight: var(--font-weight-md);
   letter-spacing: -0.02em;
@@ -54,21 +60,60 @@
 }
 
 .settings-sublabel {
-  font-family: 'DMSans', sans-serif;
+  font-family: var(--font-family-base);
   font-size: 0.75rem;
   font-weight: var(--font-weight-li);
   color: var(--text-muted);
 }
 
 .settings-value {
-  font-family: 'DMSans', sans-serif;
+  font-family: var(--font-family-base);
   font-size: 0.875rem;
   font-weight: var(--font-weight-md);
   color: var(--text-muted);
 }
 
-.settings-value--green {
-  color: var(--accent-green);
+.settings-value--mono {
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.625rem 0.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--container-shadow);
+}
+
+.settings-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.settings-card .settings-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 0;
+}
+
+.settings-card .settings-row--stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.settings-card .settings-row:first-child {
+  padding-top: 0.5rem;
+}
+
+.settings-card .settings-row:last-child {
+  padding-bottom: 0;
 }
 
 .settings-seg-group {
@@ -83,7 +128,7 @@
 }
 
 .settings-seg-btn {
-  font-family: 'DMSans', sans-serif;
+  font-family: var(--font-family-base);
   font-size: 0.875rem;
   font-weight: var(--font-weight-md);
   padding: 0.3125rem 0.75rem;
@@ -109,17 +154,56 @@
   cursor: not-allowed;
 }
 
-.settings-btn-danger {
-  font-family: 'DMSans', sans-serif;
+.settings-btn-primary,
+.settings-btn-secondary,
+.settings-btn-danger,
+.settings-btn-quiet {
+  font-family: var(--font-family-base);
   font-size: 0.875rem;
   font-weight: var(--font-weight-md);
-  padding: 0.3125rem 0.875rem;
+  padding: 0.4375rem 0.75rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.settings-btn-primary {
   background: transparent;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  color: var(--accent-green-strong);
+}
+
+.settings-btn-primary:hover {
+  background: var(--accent-green-soft);
+  border-color: var(--accent-green);
+}
+
+.settings-btn-secondary,
+.settings-btn-quiet,
+.settings-btn-danger {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+}
+
+.settings-btn-secondary {
+  color: var(--text-primary);
+}
+
+.settings-btn-secondary:hover,
+.settings-btn-quiet:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-focus);
+}
+
+.settings-btn-quiet {
+  color: var(--text-muted);
+}
+
+.settings-btn-danger {
   color: var(--accent-red);
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .settings-btn-danger:hover {
@@ -183,9 +267,6 @@
   height: 10vb;
   background: linear-gradient(to bottom, transparent, var(--bg-base));
   pointer-events: none;
-}
-
-.settings-fade {
   transition: opacity 0.3s ease;
 }
 
@@ -253,13 +334,13 @@
 }
 
 .social-icon--kofi:hover {
-  color: #72A5F2;
-  outline: 2px solid #72A5F2;
+  color: #72a5f2;
+  border-color: #72a5f2;
   background: #202020;
 }
 
 .social-icon--patreon:hover {
-  color: #FF424D;
+  color: #ff424d;
   border-color: rgba(255, 66, 77, 0.4);
   background: rgba(255, 66, 77, 0.08);
 }
@@ -313,4 +394,27 @@
   color: var(--text-dim);
   padding: 0.75rem 0;
   text-align: center;
+}
+
+.settings-row .adv-dropdown-trigger {
+  box-sizing: border-box;
+  height: 30px;
+  padding: 0 0.5rem 0 0.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-family-base);
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-md);
+  transition: border-color 0.15s ease;
+}
+
+.settings-row .adv-dropdown-trigger:hover {
+  border-color: var(--border-focus);
+}
+
+.settings-row .adv-dropdown-menu {
+  border-radius: var(--radius-md);
+  min-width: max-content;
 }

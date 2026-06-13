@@ -6,6 +6,8 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 
 static LAST_ZONE_SHOW: Mutex<Option<Instant>> = Mutex::new(None);
+static SEQUENCE_PICK_OVERLAY_ACTIVE: AtomicBool = AtomicBool::new(false);
+static CUSTOM_STOP_ZONE_PICK_OVERLAY_ACTIVE: AtomicBool = AtomicBool::new(false);
 pub static OVERLAY_THREAD_RUNNING: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(true);
 #[cfg(target_os = "linux")]
@@ -86,6 +88,13 @@ pub fn show_overlay(app: &AppHandle) -> Result<(), String> {
 
     let settings = state.settings.lock().unwrap();
     let monitors = current_monitor_rects().unwrap_or_else(|| vec![bounds]);
+    let custom_stop_zone = VirtualScreenRect::new(
+        settings.custom_stop_zone_x,
+        settings.custom_stop_zone_y,
+        settings.custom_stop_zone_width.max(1),
+        settings.custom_stop_zone_height.max(1),
+    )
+    .offset_from(bounds);
     let monitor_payload: Vec<_> = monitors
         .into_iter()
         .map(|monitor| {
@@ -111,6 +120,13 @@ pub fn show_overlay(app: &AppHandle) -> Result<(), String> {
             "cornerStopTR": settings.corner_stop_tr,
             "cornerStopBL": settings.corner_stop_bl,
             "cornerStopBR": settings.corner_stop_br,
+            "customStopZoneEnabled": settings.custom_stop_zone_enabled,
+            "customStopZone": {
+                "x": custom_stop_zone.left,
+                "y": custom_stop_zone.top,
+                "width": custom_stop_zone.width,
+                "height": custom_stop_zone.height,
+            },
             "screenWidth": bounds.width,
             "screenHeight": bounds.height,
             "monitors": monitor_payload,
@@ -123,6 +139,12 @@ pub fn show_overlay(app: &AppHandle) -> Result<(), String> {
 }
 
 pub fn check_auto_hide(app: &AppHandle) {
+    if SEQUENCE_PICK_OVERLAY_ACTIVE.load(Ordering::SeqCst)
+        || CUSTOM_STOP_ZONE_PICK_OVERLAY_ACTIVE.load(Ordering::SeqCst)
+    {
+        return;
+    }
+
     let mut last = LAST_ZONE_SHOW.lock().unwrap();
     if let Some(instant) = *last {
         if instant.elapsed() >= Duration::from_secs(3) {
@@ -147,6 +169,8 @@ pub fn check_auto_hide(app: &AppHandle) {
 #[tauri::command]
 pub fn hide_overlay(app: AppHandle) -> Result<(), String> {
     *LAST_ZONE_SHOW.lock().unwrap() = None;
+    SEQUENCE_PICK_OVERLAY_ACTIVE.store(false, Ordering::SeqCst);
+    CUSTOM_STOP_ZONE_PICK_OVERLAY_ACTIVE.store(false, Ordering::SeqCst);
     if let Some(window) = app.get_webview_window("overlay") {
         #[cfg(target_os = "windows")]
         {
@@ -160,6 +184,17 @@ pub fn hide_overlay(app: AppHandle) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+fn hide_overlay_window(window: &tauri::WebviewWindow) {
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(hwnd) = get_hwnd(window) {
+            unsafe { ShowWindow(hwnd, 0) };
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    let _ = window.hide();
 }
 
 #[cfg(target_os = "windows")]

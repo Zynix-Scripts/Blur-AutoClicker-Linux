@@ -4,7 +4,7 @@ use crate::engine::worker::stop_clicker_inner;
 use crate::engine::worker::toggle_clicker_inner;
 use crate::AppHandle;
 use crate::ClickerState;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tauri::Manager;
 
@@ -109,13 +109,7 @@ pub fn register_hotkey_inner(app: &AppHandle, hotkey: String) -> Result<String, 
 }
 
 pub fn normalize_hotkey(value: &str) -> String {
-    value
-        .trim()
-        .to_lowercase()
-        .replace("control", "ctrl")
-        .replace("command", "super")
-        .replace("meta", "super")
-        .replace("win", "super")
+    value.trim().to_ascii_lowercase()
 }
 
 pub fn parse_hotkey_binding(hotkey: &str) -> Result<HotkeyBinding, String> {
@@ -131,12 +125,13 @@ pub fn parse_hotkey_binding(hotkey: &str) -> Result<HotkeyBinding, String> {
             return Err(format!("Invalid hotkey '{hotkey}': found empty key token"));
         }
 
-        match token {
-            "alt" | "option" => alt = true,
-            "ctrl" | "control" => ctrl = true,
-            "shift" => shift = true,
-            "super" | "command" | "cmd" | "meta" | "win" => super_key = true,
-            _ => {
+        match normalize_modifier_token(token) {
+            Some("ctrl") => ctrl = true,
+            Some("alt") => alt = true,
+            Some("shift") => shift = true,
+            Some("super") => super_key = true,
+            Some(_) => {}
+            None => {
                 if main_key
                     .replace(parse_hotkey_main_key(token, hotkey)?)
                     .is_some()
@@ -156,7 +151,7 @@ pub fn parse_hotkey_binding(hotkey: &str) -> Result<HotkeyBinding, String> {
 }
 
 pub fn parse_hotkey_main_key(token: &str, original_hotkey: &str) -> Result<(i32, String), String> {
-    let lower = token.trim().to_lowercase();
+    let lower = token.trim().to_ascii_lowercase();
 
     let mapped = match lower.as_str() {
         "mouseleft" | "mouse1" => Some((VK_LBUTTON as i32, String::from("mouseleft"))),
@@ -222,16 +217,16 @@ pub fn parse_hotkey_main_key(token: &str, original_hotkey: &str) -> Result<(i32,
         return Ok(binding);
     }
 
-    if lower.starts_with('f') && lower.len() <= 3 {
-        if let Ok(number) = lower[1..].parse::<i32>() {
-            let vk = match number {
-                1..=24 => VK_F1 as i32 + (number - 1),
-                _ => -1,
-            };
-            if vk >= 0 {
-                return Ok((vk, lower));
-            }
-        }
+    if let Some(binding) = parse_mouse_button_token(&lower) {
+        return Ok(binding);
+    }
+
+    if let Some(binding) = parse_numpad_token(&lower) {
+        return Ok(binding);
+    }
+
+    if let Some(binding) = parse_function_key_token(&lower) {
+        return Ok(binding);
     }
 
     if let Some(letter) = lower.strip_prefix("key") {
@@ -285,7 +280,7 @@ pub fn start_hotkey_listener(app: AppHandle) {
 
             let currently_pressed = binding
                 .as_ref()
-                .map(|b| is_hotkey_binding_pressed(b, strict))
+                .map(|binding| is_hotkey_binding_pressed(binding, strict))
                 .unwrap_or(false);
 
             let suppress_until = app
@@ -300,8 +295,16 @@ pub fn start_hotkey_listener(app: AppHandle) {
                 .state::<ClickerState>()
                 .hotkey_capture_active
                 .load(Ordering::SeqCst);
+            let sequence_pick_active = app
+                .state::<ClickerState>()
+                .sequence_pick_active
+                .load(Ordering::SeqCst);
+            let custom_stop_zone_pick_active = app
+                .state::<ClickerState>()
+                .custom_stop_zone_pick_active
+                .load(Ordering::SeqCst);
 
-            if hotkey_capture_active {
+            if hotkey_capture_active || sequence_pick_active || custom_stop_zone_pick_active {
                 was_pressed = currently_pressed;
                 std::thread::sleep(Duration::from_millis(12));
                 continue;
@@ -396,10 +399,18 @@ fn modifiers_match(
     if binding.super_key && !super_down { return false; }
 
     if strict {
-        if ctrl_down && !binding.ctrl { return false; }
-        if alt_down && !binding.alt { return false; }
-        if shift_down && !binding.shift { return false; }
-        if super_down && !binding.super_key { return false; }
+        if ctrl_down && !binding.ctrl {
+            return false;
+        }
+        if alt_down && !binding.alt {
+            return false;
+        }
+        if shift_down && !binding.shift {
+            return false;
+        }
+        if super_down && !binding.super_key {
+            return false;
+        }
     }
 
     true
@@ -490,6 +501,55 @@ unsafe extern "system" fn mouse_hook_proc(code: i32, w_param: usize, l_param: is
         } else if delta < 0 {
             SCROLL_DOWN_AT.store(now, Ordering::SeqCst);
         }
+        "mouseright" | "rightmouse" | "rightbutton" | "mouse2" | "rmb" => {
+            Some(binding(VK_RBUTTON as i32, "mouseright"))
+        }
+        "mousemiddle" | "middlemouse" | "middlebutton" | "mouse3" | "mmb" | "scrollbutton"
+        | "middleclick" => Some(binding(VK_MBUTTON as i32, "mousemiddle")),
+        "mouse4" | "xbutton1" | "mouseback" | "browserback" | "backbutton" => {
+            Some(binding(VK_XBUTTON1 as i32, "mouse4"))
+        }
+        "mouse5" | "xbutton2" | "mouseforward" | "browserforward" | "forwardbutton" => {
+            Some(binding(VK_XBUTTON2 as i32, "mouse5"))
+        }
+        _ => None,
+    }
+}
+
+fn parse_numpad_token(token: &str) -> Option<(i32, String)> {
+    match token {
+        "numpad0" | "num0" => Some(binding(VK_NUMPAD0 as i32, "numpad0")),
+        "numpad1" | "num1" => Some(binding(VK_NUMPAD1 as i32, "numpad1")),
+        "numpad2" | "num2" => Some(binding(VK_NUMPAD2 as i32, "numpad2")),
+        "numpad3" | "num3" => Some(binding(VK_NUMPAD3 as i32, "numpad3")),
+        "numpad4" | "num4" => Some(binding(VK_NUMPAD4 as i32, "numpad4")),
+        "numpad5" | "num5" => Some(binding(VK_NUMPAD5 as i32, "numpad5")),
+        "numpad6" | "num6" => Some(binding(VK_NUMPAD6 as i32, "numpad6")),
+        "numpad7" | "num7" => Some(binding(VK_NUMPAD7 as i32, "numpad7")),
+        "numpad8" | "num8" => Some(binding(VK_NUMPAD8 as i32, "numpad8")),
+        "numpad9" | "num9" => Some(binding(VK_NUMPAD9 as i32, "numpad9")),
+        "numpadadd" | "numadd" | "numpadplus" | "numplus" => {
+            Some(binding(VK_ADD as i32, "numpadadd"))
+        }
+        "numpadsubtract" | "numsubtract" | "numsub" | "numpadminus" | "numminus" => {
+            Some(binding(VK_SUBTRACT as i32, "numpadsubtract"))
+        }
+        "numpadmultiply" | "nummultiply" | "nummul" | "numpadmul" => {
+            Some(binding(VK_MULTIPLY as i32, "numpadmultiply"))
+        }
+        "numpaddivide" | "numdivide" | "numdiv" | "numpaddiv" => {
+            Some(binding(VK_DIVIDE as i32, "numpaddivide"))
+        }
+        "numpaddecimal" | "numdecimal" | "numdot" | "numdel" | "numpadpoint" => {
+            Some(binding(VK_DECIMAL as i32, "numpaddecimal"))
+        }
+        _ => None,
+    }
+}
+
+fn parse_function_key_token(token: &str) -> Option<(i32, String)> {
+    if !token.starts_with('f') || token.len() > 3 {
+        return None;
     }
     CallNextHookEx(0, code, w_param, l_param)
 }

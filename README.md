@@ -46,6 +46,7 @@ If you are on a hybrid XWayland system (both `DISPLAY` and `WAYLAND_DISPLAY` are
 Simple Mode:
 - On / Off indicator (Blur logo turns green when active)
 - Individual mouse button settings (left, right, middle)
+- Keyboard key pressing with lower/uppercase letter control
 - Hold / Toggle activation modes
 - Customizable hotkeys
 
@@ -117,7 +118,7 @@ npm exec tauri build
 Useful validation commands:
 ```bash
 npm run lint
-npm run build
+npm run frontend:build
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
