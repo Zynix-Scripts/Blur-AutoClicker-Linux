@@ -537,6 +537,64 @@ export default function AdvancedPanelLayout({
 
             <div className="sectioncontainer">
               <div className="adv-card-header">
+                <span className="adv-card-title">Custom Stop Zone</span>
+                <ToggleBtn
+                  value={settings.customStopZoneEnabled}
+                  onChange={(v) => update({ customStopZoneEnabled: v })}
+                />
+              </div>
+              <CardDivider />
+              <Disableable enabled={settings.customStopZoneEnabled}>
+                <div className="adv-row" style={{ gap: 8, flexWrap: "wrap" }}>
+                  {show_explanations && (
+                    <p className="adv-desc" style={{ flex: 1 }}>
+                      Stops the clicker when the cursor is inside this rectangle.
+                    </p>
+                  )}
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span className="adv-unit">X</span>
+                    <div className="adv-numbox-sm" style={{ width: 60 }}>
+                      <NumInput
+                        value={settings.customStopZoneX}
+                        onChange={(v) => update({ customStopZoneX: v })}
+                        min={-9999}
+                        max={9999}
+                      />
+                    </div>
+                    <span className="adv-unit">Y</span>
+                    <div className="adv-numbox-sm" style={{ width: 60 }}>
+                      <NumInput
+                        value={settings.customStopZoneY}
+                        onChange={(v) => update({ customStopZoneY: v })}
+                        min={-9999}
+                        max={9999}
+                      />
+                    </div>
+                    <span className="adv-unit">W</span>
+                    <div className="adv-numbox-sm" style={{ width: 60 }}>
+                      <NumInput
+                        value={settings.customStopZoneWidth}
+                        onChange={(v) => update({ customStopZoneWidth: v })}
+                        min={1}
+                        max={9999}
+                      />
+                    </div>
+                    <span className="adv-unit">H</span>
+                    <div className="adv-numbox-sm" style={{ width: 60 }}>
+                      <NumInput
+                        value={settings.customStopZoneHeight}
+                        onChange={(v) => update({ customStopZoneHeight: v })}
+                        min={1}
+                        max={9999}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Disableable>
+            </div>
+
+            <div className="sectioncontainer">
+              <div className="adv-card-header">
                 <span className="adv-card-title">Position</span>
                 <ToggleBtn
                   value={settings.positionEnabled}
@@ -972,6 +1030,65 @@ export default function AdvancedPanelLayout({
                         <span className="adv-unit">px</span>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </Disableable>
+            </div>
+
+            <div className="sectioncontainer adv-compact-card">
+              <div className="adv-card-header">
+                <span className="adv-card-title">Custom Stop Zone</span>
+                <ToggleBtn
+                  value={settings.customStopZoneEnabled}
+                  onChange={(v) => update({ customStopZoneEnabled: v })}
+                />
+              </div>
+              <CardDivider />
+              <Disableable enabled={settings.customStopZoneEnabled}>
+                <div className={feature_body_class}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 8,
+                    }}
+                  >
+                    <div className="adv-numbox-sm">
+                      <span className="adv-unit">X</span>
+                      <NumInput
+                        value={settings.customStopZoneX}
+                        onChange={(v) => update({ customStopZoneX: v })}
+                        min={-9999}
+                        max={9999}
+                      />
+                    </div>
+                    <div className="adv-numbox-sm">
+                      <span className="adv-unit">Y</span>
+                      <NumInput
+                        value={settings.customStopZoneY}
+                        onChange={(v) => update({ customStopZoneY: v })}
+                        min={-9999}
+                        max={9999}
+                      />
+                    </div>
+                    <div className="adv-numbox-sm">
+                      <span className="adv-unit">W</span>
+                      <NumInput
+                        value={settings.customStopZoneWidth}
+                        onChange={(v) => update({ customStopZoneWidth: v })}
+                        min={1}
+                        max={9999}
+                      />
+                    </div>
+                    <div className="adv-numbox-sm">
+                      <span className="adv-unit">H</span>
+                      <NumInput
+                        value={settings.customStopZoneHeight}
+                        onChange={(v) => update({ customStopZoneHeight: v })}
+                        min={1}
+                        max={9999}
+                      />
+                    </div>
                   </div>
                 </div>
               </Disableable>

@@ -40,6 +40,11 @@ export interface Settings {
   positionEnabled: boolean;
   positionX: number;
   positionY: number;
+  customStopZoneEnabled: boolean;
+  customStopZoneX: number;
+  customStopZoneY: number;
+  customStopZoneWidth: number;
+  customStopZoneHeight: number;
   disableScreenshots: boolean;
   advancedSettingsEnabled: boolean;
   explanationMode: ExplanationMode;
@@ -97,6 +102,11 @@ export const DEFAULT_SETTINGS: Settings = {
   positionEnabled: false,
   positionX: 0,
   positionY: 0,
+  customStopZoneEnabled: false,
+  customStopZoneX: 0,
+  customStopZoneY: 0,
+  customStopZoneWidth: 100,
+  customStopZoneHeight: 100,
   disableScreenshots: false,
   advancedSettingsEnabled: true,
   explanationMode: "text",

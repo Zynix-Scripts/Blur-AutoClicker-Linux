@@ -3,6 +3,7 @@ pub mod mouse;
 pub mod rng;
 pub mod stats;
 pub mod worker;
+use crate::engine::mouse::VirtualScreenRect;
 use std::sync::atomic::AtomicI64;
 pub use worker::start_clicker;
 
@@ -19,6 +20,8 @@ pub struct ClickerConfig {
     pub position_enabled: bool,
     pub pos_x: i32,
     pub pos_y: i32,
+    pub custom_stop_zone_enabled: bool,
+    pub custom_stop_zone: VirtualScreenRect,
     pub offset: f64,
     pub offset_chance: f64,
     pub smoothing: i32,

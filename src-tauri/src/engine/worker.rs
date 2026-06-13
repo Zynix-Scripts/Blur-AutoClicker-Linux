@@ -223,6 +223,13 @@ pub fn build_config(settings: &ClickerSettings) -> Result<ClickerConfig, String>
         position_enabled: settings.position_enabled,
         pos_x: settings.position_x,
         pos_y: settings.position_y,
+        custom_stop_zone_enabled: settings.custom_stop_zone_enabled,
+        custom_stop_zone: crate::engine::mouse::VirtualScreenRect::new(
+            settings.custom_stop_zone_x,
+            settings.custom_stop_zone_y,
+            settings.custom_stop_zone_width.max(1),
+            settings.custom_stop_zone_height.max(1),
+        ),
         offset: 0.0,
         offset_chance: 0.0,
         smoothing: 0,

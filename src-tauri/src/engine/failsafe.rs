@@ -61,11 +61,26 @@ fn detect_edge_failsafe(
     None
 }
 
+fn detect_custom_stop_zone(cursor: (i32, i32), config: &ClickerConfig) -> Option<String> {
+    if !config.custom_stop_zone_enabled {
+        return None;
+    }
+    if config.custom_stop_zone.contains(cursor.0, cursor.1) {
+        Some(String::from("Custom stop zone failsafe"))
+    } else {
+        None
+    }
+}
+
 pub fn detect_failsafe(
     cursor: (i32, i32),
     monitors: &[VirtualScreenRect],
     config: &ClickerConfig,
 ) -> Option<String> {
+    if let Some(reason) = detect_custom_stop_zone(cursor, config) {
+        return Some(reason);
+    }
+
     if config.corner_stop_enabled {
         for monitor in monitors.iter().copied() {
             if let Some(reason) = detect_corner_failsafe(cursor, monitor, config) {
@@ -109,6 +124,8 @@ mod tests {
             position_enabled: false,
             pos_x: 0,
             pos_y: 0,
+            custom_stop_zone_enabled: false,
+            custom_stop_zone: VirtualScreenRect::new(0, 0, 100, 100),
             offset: 0.0,
             offset_chance: 0.0,
             smoothing: 0,
@@ -122,6 +139,7 @@ mod tests {
             edge_stop_right: 40,
             edge_stop_bottom: 40,
             edge_stop_left: 40,
+            high_cps_mode: false,
         }
     }
 
