@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type FocusEvent,
   type ReactNode,
+  type WheelEvent,
 } from "react";
 import type { Settings } from "../../store";
 import { isAlphabeticKeyboardKey } from "../../keyboardKeyCase";
@@ -115,6 +116,21 @@ function NumInput({
     onChange(val);
   };
 
+  const handle_wheel = (e: WheelEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.blur();
+    const delta = e.deltaY < 0 ? 1 : -1;
+    let step = 1;
+    if (e.shiftKey && e.ctrlKey) step = 10;
+    else if (e.shiftKey) step = 5;
+    const current = Number.isFinite(value) ? value : (min ?? 0);
+    let next = current + delta * step;
+    if (min !== undefined && next < min) next = min;
+    if (max !== undefined && next > max) next = max;
+    onChange(next);
+  };
+
   return (
     <input
       ref={ref}
@@ -125,6 +141,7 @@ function NumInput({
       max={max}
       onChange={handle_change}
       onBlur={handle_blur}
+      onWheel={handle_wheel}
       style={{
         background: "transparent",
         border: "none",

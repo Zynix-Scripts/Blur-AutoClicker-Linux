@@ -91,6 +91,13 @@ export default function SequenceSection({
     update({ sequencePoints: [] });
   };
 
+  const handleInputWheel = (e: React.WheelEvent<HTMLInputElement>) => {
+    if (e.target === document.activeElement) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
   return (
     <div className="sectioncontainer">
       <div className="adv-card-header">
@@ -120,6 +127,7 @@ export default function SequenceSection({
                 className="seq-input"
                 value={point.x}
                 onChange={(e) => updatePoint(index, { x: clampInt(e.target.value, -99999, 99999) })}
+                onWheel={handleInputWheel}
                 title="X coordinate"
                 min={-99999}
                 max={99999}
@@ -129,6 +137,7 @@ export default function SequenceSection({
                 className="seq-input"
                 value={point.y}
                 onChange={(e) => updatePoint(index, { y: clampInt(e.target.value, -99999, 99999) })}
+                onWheel={handleInputWheel}
                 title="Y coordinate"
                 min={-99999}
                 max={99999}
@@ -140,6 +149,7 @@ export default function SequenceSection({
                 onChange={(e) =>
                   updatePoint(index, { clicks: clampInt(e.target.value, 1, 100000) })
                 }
+                onWheel={handleInputWheel}
                 title="Clicks"
                 min={1}
                 max={100000}

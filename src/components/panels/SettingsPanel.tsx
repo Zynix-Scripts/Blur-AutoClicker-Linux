@@ -5,6 +5,8 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import ConfirmDialog from "../ConfirmDialog";
+import { changelogEntries } from "../../changelog";
+import ChangelogContent from "../ChangelogContent";
 
 interface CumulativeStats {
   totalClicks: number;
@@ -18,6 +20,8 @@ interface Props {
   update: (patch: Partial<Settings>) => void;
   app_info: AppInfo;
   onReset: () => Promise<void>;
+  updateCheckStatus: "idle" | "checking" | "available" | "unavailable" | "error";
+  onCheckForUpdate: () => void;
 }
 
 function format_time(total_seconds: number): string {
@@ -74,6 +78,8 @@ export default function SettingsPanel({
   update,
   app_info,
   onReset,
+  updateCheckStatus,
+  onCheckForUpdate,
 }: Props) {
   const [resetting, set_resetting] = useState(false);
   const [resetting_stats, set_resetting_stats] = useState(false);
@@ -83,6 +89,7 @@ export default function SettingsPanel({
   const [pending_action, set_pending_action] = useState<
     "reset-settings" | "clear-stats" | null
   >(null);
+  const [show_changelog, set_show_changelog] = useState(false);
 
   const panel_ref = useRef<HTMLDivElement>(null);
   const prev_running = useRef(false);
@@ -159,6 +166,14 @@ export default function SettingsPanel({
     set_resetting(true);
     onReset().finally(() => set_resetting(false));
   };
+
+  const update_button_label = {
+    idle: "Check for Updates",
+    checking: "Checking...",
+    available: "Update Available",
+    unavailable: "No Update Available",
+    error: "Check Failed",
+  }[updateCheckStatus];
 
   return (
     <div className="settings-layout">
@@ -509,11 +524,44 @@ export default function SettingsPanel({
               <div className="settings-divider" />
 
               <div className="settings-row">
-                <span className="settings-label">Version</span>
-                <span className="settings-value">
-                  v{app_info.version} - Ported by Zynix
-                </span>
+                <div className="settings-label-group settings-label-group--inline">
+                  <span className="settings-label">Version</span>
+                  <span className="settings-value">
+                    v{app_info.version} - Ported by Zynix
+                  </span>
+                </div>
+                <div className="settings-row-actions">
+                  <button
+                    className="settings-btn-secondary changelog-toggle-btn"
+                    onClick={() => set_show_changelog((v) => !v)}
+                  >
+                    <svg
+                      className={`changelog-arrow${show_changelog ? " open" : ""}`}
+                      width="10"
+                      height="10"
+                      viewBox="0 0 10 10"
+                      fill="none"
+                    >
+                      <path
+                        d="M3 1L7 5L3 9"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    {show_changelog ? "Hide Changes" : "Show Changes"}
+                  </button>
+                  <button
+                    className="settings-btn-secondary check-update-btn"
+                    onClick={onCheckForUpdate}
+                    disabled={updateCheckStatus !== "idle"}
+                  >
+                    {update_button_label}
+                  </button>
+                </div>
               </div>
+              {show_changelog && <ChangelogContent entries={changelogEntries} />}
             </>
           )}
         </div>

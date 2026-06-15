@@ -13,6 +13,7 @@ interface Props {
   set_tab: (t: Tab) => void;
   running: boolean;
   stopReason?: string | null;
+  stopKey?: number;
   on_request_close: () => Promise<void>;
 }
 
@@ -92,6 +93,7 @@ export default function TitleBar({
   set_tab,
   running,
   stopReason,
+  stopKey,
   on_request_close,
 }: Props) {
   const [is_always_on_top, set_is_always_on_top] = useState(false);
@@ -158,7 +160,7 @@ export default function TitleBar({
       </div>
 
       <div className="title-wrapper">
-        <AnimatedTitle running={running} stopReason={stopReason} />
+        <AnimatedTitle running={running} stopReason={stopReason} stopKey={stopKey} />
       </div>
 
       <div
@@ -228,7 +230,8 @@ export default function TitleBar({
 function AnimatedTitle({
   running,
   stopReason,
-}: Pick<Props, "running" | "stopReason">) {
+  stopKey,
+}: Pick<Props, "running" | "stopReason" | "stopKey">) {
   const [title_state, set_title_state] = useState(DEFAULT_TITLE_STATE);
   const frame_ids_ref = useRef<number[]>([]);
   const timeout_ids_ref = useRef<number[]>([]);
@@ -294,7 +297,7 @@ function AnimatedTitle({
     });
 
     return clear_scheduled_work;
-  }, [running, stopReason]);
+  }, [running, stopKey]);
 
   return (
     <span

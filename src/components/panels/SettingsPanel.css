@@ -141,6 +141,30 @@
   cursor: not-allowed;
 }
 
+.settings-btn-secondary {
+  font-family: 'DMSans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-md);
+  padding: 0.3125rem 0.875rem;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.settings-btn-secondary:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.settings-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .settings-btn-danger {
   font-family: 'DMSans', sans-serif;
   font-size: 0.875rem;

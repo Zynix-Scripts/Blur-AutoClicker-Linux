@@ -142,9 +142,14 @@ export default function App() {
     currentVersion: string;
     latestVersion: string;
   } | null>(null);
+  const [update_check_status, set_update_check_status] = useState<
+    "idle" | "checking" | "available" | "unavailable" | "error"
+  >("idle");
   const [system_warnings, set_system_warnings] = useState<string[]>([]);
+  const [stop_key, set_stop_key] = useState(0);
 
   const hotkey_timer = useRef<number | null>(null);
+  const prev_stop_reason_ref = useRef<string | null>(null);
   const hotkey_request_id_ref = useRef(0);
   const ui_settings_ref = useRef<Settings>(DEFAULT_SETTINGS);
   const committed_settings_ref = useRef<Settings>(DEFAULT_SETTINGS);
@@ -152,6 +157,7 @@ export default function App() {
   const launch_window_placement_done = useRef(false);
   const save_timer_ref = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resize_timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const update_cooldown_timer_ref = useRef<ReturnType<typeof setTimeout> | null>(null);
   const last_resize_time = useRef(0);
   const last_tab_ref = useRef<Tab | null>(null);
 
@@ -495,27 +501,33 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const check_for_updates = () => {
-      invoke<{
-        currentVersion: string;
-        latestVersion: string;
-        updateAvailable: boolean;
-      }>("check_for_updates")
-        .then((result) => {
-          if (result?.updateAvailable) {
-            set_update_info({
-              currentVersion: result.currentVersion,
-              latestVersion: result.latestVersion,
-            });
-          }
-        })
-        .catch((err) => console.error("Update check failed:", err));
+    const check = async () => {
+      try {
+        const result = await invoke<
+          { currentVersion: string; latestVersion: string; updateAvailable: boolean } | null
+        >("check_for_updates");
+        if (result?.updateAvailable) {
+          set_update_info({
+            currentVersion: result.currentVersion,
+            latestVersion: result.latestVersion,
+          });
+        }
+      } catch (err) {
+        console.error("Update check failed:", err);
+      }
     };
 
-    check_for_updates();
-    const interval = setInterval(check_for_updates, 60 * 60 * 1000);
+    check();
+    const interval = setInterval(check, 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (status.stopReason && status.stopReason !== prev_stop_reason_ref.current) {
+      set_stop_key((k) => k + 1);
+    }
+    prev_stop_reason_ref.current = status.stopReason;
+  }, [status.stopReason]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme ?? "dark";
@@ -568,6 +580,49 @@ export default function App() {
     }
   };
 
+  const handle_check_for_update = async () => {
+    set_update_check_status("checking");
+    try {
+      const result = await invoke<
+        { currentVersion: string; latestVersion: string; updateAvailable: boolean } | null
+      >("check_for_updates");
+      if (result) {
+        if (result.updateAvailable) {
+          set_update_check_status("available");
+          set_update_info({
+            currentVersion: result.currentVersion,
+            latestVersion: result.latestVersion,
+          });
+        } else {
+          set_update_check_status("unavailable");
+          set_update_info(null);
+        }
+      } else {
+        set_update_check_status("error");
+        set_update_info(null);
+      }
+    } catch (err) {
+      console.error("Update check failed:", err);
+      set_update_check_status("error");
+      set_update_info(null);
+    }
+
+    if (update_cooldown_timer_ref.current) {
+      clearTimeout(update_cooldown_timer_ref.current);
+    }
+    update_cooldown_timer_ref.current = setTimeout(() => {
+      set_update_check_status((prev) => (prev === "available" ? prev : "idle"));
+    }, 60000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (update_cooldown_timer_ref.current) {
+        clearTimeout(update_cooldown_timer_ref.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="app-root" data-tab={tab}>
       <TitleBar
@@ -579,6 +634,7 @@ export default function App() {
             ? status.stopReason
             : null
         }
+        stopKey={stop_key}
         on_request_close={handle_window_close}
       />
       {system_warnings.map((msg) => (
@@ -639,6 +695,8 @@ export default function App() {
             update={update_settings}
             app_info={app_info}
             onReset={handle_reset_settings}
+            updateCheckStatus={update_check_status}
+            onCheckForUpdate={handle_check_for_update}
           />
         )}
       </main>
