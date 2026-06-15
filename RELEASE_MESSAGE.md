@@ -1,9 +1,9 @@
-# v3.7.0 | Linux Port
+# v3.7.2 | Linux Port
 
 > [!IMPORTANT]
 > This is a Linux build and as such will NOT work on Windows.
 
-This release ports upstream **v3.7.0** to Linux, bringing the latest features and fixes to the Linux fork.
+This release ports upstream **v3.7.2** to Linux, including all v3.7.1 and v3.7.2 fixes and features that work on Linux.
 
 ## New
 - Added Sequence picking instead of a timer.
@@ -14,16 +14,25 @@ This release ports upstream **v3.7.0** to Linux, bringing the latest features an
 - Added System tray icon with Show/Quit menu.
 - Added Confirm dialogs for Reset & Clear Stats actions.
 - Added Custom Stop Zone failsafe.
+- Added scrolling on drop-down fields.
+- Added Shift and Shift + Ctrl scrolling on number fields for bigger increments (5 and 10).
+- Added "Check for update" button in Settings.
+- Added changelog in the Settings page.
 
-## Fix
+## Fixed
+- Added scroll blocking for Sequence clicking items so wheel events don't change input values.
+- Removed text weight difference for light mode.
+- Added bundled font to the overlay so it no longer defaults to Arial.
+- Fixed hotkey self-triggering during auto-clicks by flagging synthetic input and filtering it out in hotkey detection.
+- Fixed stop reason repeating when switching between simple and advanced mode.
 - Removed dynamic adjustment of the panel size of the hotkey field in simple mode to prevent a scroll bar from showing up.
 - Refactored double click timing to work correctly with click duration / duty cycle.
-- Fixed a Linux compile issue in the keyboard auto-press backend.
+- Fixed Linux keyboard auto-press compile issue.
 
 ## Assets
-- `BlurAutoClicker Linux_3.7.0_amd64.deb`
-- `BlurAutoClicker Linux-3.7.0-1.x86_64.rpm`
-- `BlurAutoClicker-3.7.0-x86_64.tar.gz` (portable archive)
+- `BlurAutoClicker Linux_3.7.2_amd64.deb`
+- `BlurAutoClicker Linux-3.7.2-1.x86_64.rpm`
+- `BlurAutoClicker-3.7.2-x86_64.tar.gz` (portable archive)
 
 > [!NOTE]
 - Always on Top works on X11; on pure Wayland use your compositor's window rules.
