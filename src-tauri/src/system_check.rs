@@ -58,7 +58,6 @@ fn check_linux() -> SystemDepsInfo {
 
     let mut warnings: Vec<String> = Vec::new();
 
-
     if has_x11 {
         log::info!("[SystemCheck] X11 detected - autoclicker uses XTEST (full feature set)");
     }
@@ -78,19 +77,18 @@ fn check_linux() -> SystemDepsInfo {
                 );
             } else {
                 warnings.push(
-                    "/dev/uinput exists but is not accessible.\nFix: sudo chmod 660 /dev/uinput".to_string(),
+                    "/dev/uinput exists but is not accessible.\nFix: sudo chmod 660 /dev/uinput"
+                        .to_string(),
                 );
             }
         }
     }
-
 
     if has_x11 && has_wayland {
         warnings.push(
             "XWayland detected: the X11 click backend only works on X11 windows. Native Wayland applications will not receive clicks.".to_string(),
         );
     }
-
 
     if has_x11 && mouse_backend.contains("CONNECTION FAILED") {
         warnings.push(

@@ -21,7 +21,6 @@ pub fn notify_settings_changed(app: &AppHandle) {
     let _ = app.emit("settings-changed", settings);
 }
 
-
 #[tauri::command]
 pub fn get_text_scale_factor() -> f64 {
     #[cfg(target_os = "windows")]
@@ -30,9 +29,7 @@ pub fn get_text_scale_factor() -> f64 {
         use winreg::RegKey;
 
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let key = hkcu
-            .open_subkey(r"Software\Microsoft\Accessibility")
-            .ok();
+        let key = hkcu.open_subkey(r"Software\Microsoft\Accessibility").ok();
 
         if let Some(key) = key {
             let value: u32 = key.get_value("TextScaleFactor").unwrap_or(100);
@@ -63,11 +60,9 @@ pub fn set_always_on_top_linux(_window: tauri::Window, _enabled: bool) -> Result
             RawWindowHandle::Xlib(h) => h.window as u32,
             RawWindowHandle::Xcb(h) => h.window.get() as u32,
             _ => {
-                return Err(
-                    "Always on Top is not supported on pure Wayland. \
+                return Err("Always on Top is not supported on pure Wayland. \
                      Try running with GDK_BACKEND=x11 or configure a compositor window rule."
-                        .to_string(),
-                );
+                    .to_string());
             }
         };
 
@@ -93,13 +88,8 @@ pub fn set_always_on_top_linux(_window: tauri::Window, _enabled: bool) -> Result
             .map_err(|e| e.to_string())?
             .atom;
 
-        let data = ClientMessageData::from([
-            if enabled { 1u32 } else { 0u32 },
-            wm_state_above,
-            0,
-            0,
-            0,
-        ]);
+        let data =
+            ClientMessageData::from([if enabled { 1u32 } else { 0u32 }, wm_state_above, 0, 0, 0]);
 
         let event = ClientMessageEvent::new(32, window_id, wm_state, data);
 
@@ -119,7 +109,6 @@ pub fn set_always_on_top_linux(_window: tauri::Window, _enabled: bool) -> Result
 pub fn start_clicker(app: AppHandle) -> Result<ClickerStatusPayload, String> {
     start_clicker_inner(&app)
 }
-
 
 #[tauri::command]
 pub fn stop_clicker(app: AppHandle) -> Result<ClickerStatusPayload, String> {

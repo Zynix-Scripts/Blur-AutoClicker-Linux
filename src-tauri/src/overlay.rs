@@ -257,21 +257,18 @@ pub fn stop_sequence_pick(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn sequence_point_picked(
-    app: AppHandle,
-    x: i32,
-    y: i32,
-    is_final: bool,
-) -> Result<(), String> {
+pub fn sequence_point_picked(app: AppHandle, x: i32, y: i32, is_final: bool) -> Result<(), String> {
     let state = app.state::<ClickerState>();
     {
         let mut settings = state.settings.lock().unwrap();
-        settings.sequence_points.push(crate::settings::SequencePoint {
-            id: format!("seq-{}", uuid::Uuid::new_v4()),
-            x,
-            y,
-            clicks: 1,
-        });
+        settings
+            .sequence_points
+            .push(crate::settings::SequencePoint {
+                id: format!("seq-{}", uuid::Uuid::new_v4()),
+                x,
+                y,
+                clicks: 1,
+            });
     }
 
     crate::ui_commands::notify_settings_changed(&app);
@@ -333,11 +330,11 @@ pub fn clear_sequence_points(app: AppHandle) -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
-fn get_hwnd(window: &tauri::WebviewWindow) -> Result<isize, String> {
+fn get_hwnd(window: &tauri::WebviewWindow) -> Result<*mut std::ffi::c_void, String> {
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
     let handle = window.window_handle().map_err(|e| e.to_string())?;
     match handle.as_raw() {
-        RawWindowHandle::Win32(w) => Ok(w.hwnd.get()),
+        RawWindowHandle::Win32(w) => Ok(w.hwnd.get() as *mut std::ffi::c_void),
         _ => Err("Not a Win32 window".to_string()),
     }
 }
@@ -365,7 +362,7 @@ fn apply_win32_styles(window: &tauri::WebviewWindow) -> Result<(), String> {
 
         SetWindowPos(
             hwnd,
-            0,
+            std::ptr::null_mut(),
             0,
             0,
             0,
@@ -387,7 +384,7 @@ fn sync_overlay_bounds(window: &tauri::WebviewWindow) -> Result<VirtualScreenRec
     unsafe {
         SetWindowPos(
             hwnd,
-            0,
+            std::ptr::null_mut(),
             bounds.left,
             bounds.top,
             bounds.width,
@@ -406,7 +403,7 @@ fn show_overlay_window(window: &tauri::WebviewWindow) -> Result<(), String> {
     unsafe {
         SetWindowPos(
             hwnd,
-            0,
+            std::ptr::null_mut(),
             0,
             0,
             0,

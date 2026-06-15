@@ -82,7 +82,10 @@ export default function SimplePanel({ settings, update }: SimplePanelProps) {
     e.stopPropagation();
     e.currentTarget.blur();
     const delta = e.deltaY < 0 ? 1 : -1;
-    apply(clamp(current + delta, min, max));
+    let step = 1;
+    if (e.shiftKey && e.ctrlKey) step = 10;
+    else if (e.shiftKey) step = 5;
+    apply(clamp(current + delta * step, min, max));
   };
 
   return (

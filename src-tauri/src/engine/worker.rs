@@ -15,9 +15,9 @@ use super::failsafe::should_stop_for_failsafe;
 use super::keyboard::send_key_presses_cross_platform;
 use super::mouse::{get_button_flags, get_cursor_pos, move_mouse, send_clicks, smooth_move};
 use super::rng::SmallRng;
-use super::SequenceTarget;
 use super::ClickerConfig;
 use super::RunOutcome;
+use super::SequenceTarget;
 use super::CLICK_COUNT;
 use crate::overlay::emit_sequence_points;
 
@@ -46,7 +46,10 @@ fn thread_cycles() -> u64 {
 #[cfg(target_os = "linux")]
 #[inline]
 fn thread_cycles() -> u64 {
-    let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    let mut ts = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
     unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut ts) };
     ts.tv_sec as u64 * 1_000_000_000 + ts.tv_nsec as u64
 }
@@ -245,8 +248,9 @@ pub fn build_config(settings: &ClickerSettings) -> Result<ClickerConfig, String>
         (0u16, String::new())
     };
 
-    let keyboard_uppercase =
-        is_keyboard && settings.keyboard_key_case == "upper" && crate::engine::keyboard::is_alphabetic_vk(key_code);
+    let keyboard_uppercase = is_keyboard
+        && settings.keyboard_key_case == "upper"
+        && crate::engine::keyboard::is_alphabetic_vk(key_code);
 
     let time_limit_secs = if settings.time_limit_enabled {
         Some(match settings.time_limit_unit.as_str() {
@@ -382,7 +386,9 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
     #[cfg(target_os = "windows")]
     let mut timer_res_current = 0u32;
     #[cfg(target_os = "windows")]
-    unsafe { NtSetTimerResolution(10000, 1, &mut timer_res_current) };
+    unsafe {
+        NtSetTimerResolution(10000, 1, &mut timer_res_current)
+    };
 
     let cycle_freq = calibrate_cycle_freq();
     let cpu_cycles_start = thread_cycles();
@@ -407,6 +413,17 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
         2usize
     } else {
         1usize
+    };
+    let effective_duty = if cps > 500.0 {
+        config.duty.min(1.0)
+    } else if cps >= 200.0 {
+        config.duty.min(30.0)
+    } else if cps >= 100.0 {
+        config.duty.min(70.0)
+    } else if cps >= 50.0 {
+        config.duty.min(98.0)
+    } else {
+        config.duty
     };
 
     let batch_interval = config.interval * batch_size as f64;
@@ -470,8 +487,9 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
                 target_y = base_y;
             }
 
-            let should_move_to_target =
-                !config.use_sequence() || moved_sequence_index != Some(sequence_index) || config.offset > 0.0;
+            let should_move_to_target = !config.use_sequence()
+                || moved_sequence_index != Some(sequence_index)
+                || config.offset > 0.0;
 
             if use_smoothing && should_move_to_target {
                 let (cur_x, cur_y) = get_cursor_pos();
@@ -523,7 +541,7 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
         } else {
             batch_interval
         };
-        let hold_ms = (config.interval * (config.duty.max(0.0) / 100.0) * 1000.0) as u32;
+        let hold_ms = (config.interval * (effective_duty.max(0.0) / 100.0) * 1000.0) as u32;
 
         next_batch_time += Duration::from_secs_f64(batch_duration.max(0.001));
 
@@ -563,8 +581,7 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
         }
 
         if config.use_sequence() {
-            sequence_clicks_remaining =
-                sequence_clicks_remaining.saturating_sub(clicks_this_cycle);
+            sequence_clicks_remaining = sequence_clicks_remaining.saturating_sub(clicks_this_cycle);
             if sequence_clicks_remaining == 0 {
                 sequence_index = (sequence_index + 1) % config.sequence_points.len();
                 sequence_clicks_remaining = config.sequence_points[sequence_index].clicks.max(1);
@@ -580,7 +597,9 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
     }
 
     #[cfg(target_os = "windows")]
-    unsafe { NtSetTimerResolution(10000, 0, &mut timer_res_current) };
+    unsafe {
+        NtSetTimerResolution(10000, 0, &mut timer_res_current)
+    };
 
     let elapsed_secs = start_time.elapsed().as_secs_f64();
     let cpu_cycles_end = thread_cycles();

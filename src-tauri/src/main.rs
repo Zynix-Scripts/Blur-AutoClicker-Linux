@@ -3,9 +3,6 @@
 use app_lib::run;
 
 fn main() {
-
-
-
     #[cfg(target_os = "linux")]
     {
         if std::env::var_os("DISPLAY").is_some()

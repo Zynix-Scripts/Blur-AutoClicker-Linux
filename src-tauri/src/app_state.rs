@@ -16,6 +16,7 @@ pub struct ClickerState {
     pub suppress_hotkey_until_release: AtomicBool,
     pub hotkey_capture_active: AtomicBool,
     pub sequence_pick_active: AtomicBool,
+    pub custom_stop_zone_pick_active: AtomicBool,
     pub registered_hotkey: Mutex<Option<HotkeyBinding>>,
     pub settings_initialized: AtomicBool,
 }

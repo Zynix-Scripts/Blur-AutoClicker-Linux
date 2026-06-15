@@ -2,19 +2,29 @@ use crate::engine::worker::now_epoch_ms;
 use crate::engine::worker::start_clicker_inner;
 use crate::engine::worker::stop_clicker_inner;
 use crate::engine::worker::toggle_clicker_inner;
+use crate::engine::AUTOCLICKER_EXTRA_INFO;
 use crate::AppHandle;
 use crate::ClickerState;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::OnceLock;
 use std::time::Duration;
+use std::time::Instant;
 use tauri::Manager;
 
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::Foundation::LRESULT;
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, GetMessageW, SetWindowsHookExW, KBDLLHOOKSTRUCT, LLKHF_EXTENDED, MSG,
-    WH_KEYBOARD_LL, WH_MOUSE_LL, WM_KEYDOWN, WM_KEYUP, WM_MOUSEWHEEL, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    CallNextHookEx, GetMessageW, PeekMessageW, SetWindowsHookExW, UnhookWindowsHookEx,
+    KBDLLHOOKSTRUCT, LLKHF_EXTENDED, MSG, MSLLHOOKSTRUCT, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_KEYDOWN,
+    WM_KEYUP, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEWHEEL, WM_QUIT,
+    WM_RBUTTONDOWN, WM_RBUTTONUP, WM_SYSKEYDOWN, WM_SYSKEYUP, WM_XBUTTONDOWN, WM_XBUTTONUP,
 };
+
+#[cfg(target_os = "windows")]
+const PM_REMOVE: u32 = 0x0001;
 
 #[cfg(target_os = "linux")]
 #[allow(dead_code)]
@@ -84,6 +94,7 @@ static SCROLL_DOWN_AT: AtomicU64 = AtomicU64::new(0);
 static NUMPAD_ENTER_DOWN: AtomicBool = AtomicBool::new(false);
 
 const SCROLL_WINDOW_MS: u64 = 200;
+const POLL_INTERVAL: Duration = Duration::from_millis(12);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HotkeyBinding {
@@ -152,7 +163,14 @@ pub fn parse_hotkey_binding(hotkey: &str) -> Result<HotkeyBinding, String> {
     let (main_vk, key_token) =
         main_key.ok_or_else(|| format!("Invalid hotkey '{hotkey}': missing main key"))?;
 
-    Ok(HotkeyBinding { ctrl, alt, shift, super_key, main_vk, key_token })
+    Ok(HotkeyBinding {
+        ctrl,
+        alt,
+        shift,
+        super_key,
+        main_vk,
+        key_token,
+    })
 }
 
 pub fn parse_hotkey_main_key(token: &str, original_hotkey: &str) -> Result<(i32, String), String> {
@@ -263,18 +281,209 @@ pub fn parse_hotkey_main_key(token: &str, original_hotkey: &str) -> Result<(i32,
 
 pub fn format_hotkey_binding(binding: &HotkeyBinding) -> String {
     let mut parts: Vec<String> = Vec::new();
-    if binding.ctrl { parts.push(String::from("ctrl")); }
-    if binding.alt { parts.push(String::from("alt")); }
-    if binding.shift { parts.push(String::from("shift")); }
-    if binding.super_key { parts.push(String::from("super")); }
+    if binding.ctrl {
+        parts.push(String::from("ctrl"));
+    }
+    if binding.alt {
+        parts.push(String::from("alt"));
+    }
+    if binding.shift {
+        parts.push(String::from("shift"));
+    }
+    if binding.super_key {
+        parts.push(String::from("super"));
+    }
     parts.push(binding.key_token.clone());
     parts.join("+")
 }
 
+#[cfg(target_os = "windows")]
+static PHYSICAL_KEY_STATE: OnceLock<&'static [AtomicBool; 256]> = OnceLock::new();
+#[cfg(target_os = "windows")]
+static HOOKS_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+#[cfg(target_os = "windows")]
+fn physical_key_state() -> &'static [AtomicBool; 256] {
+    PHYSICAL_KEY_STATE
+        .get_or_init(|| Box::leak(Box::new(std::array::from_fn(|_| AtomicBool::new(false)))))
+}
+
+#[cfg(target_os = "windows")]
+fn is_physical_vk_down(vk: i32) -> bool {
+    if !(0..256).contains(&vk) {
+        return false;
+    }
+    physical_key_state()[vk as usize].load(Ordering::Relaxed)
+}
+
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn mouse_ll_proc(n_code: i32, w_param: usize, l_param: isize) -> LRESULT {
+    if n_code >= 0 {
+        let mhs = &*(l_param as *const MSLLHOOKSTRUCT);
+        if (mhs.dwExtraInfo) != AUTOCLICKER_EXTRA_INFO {
+            let (vk, down) = match w_param as u32 {
+                WM_LBUTTONDOWN => (VK_LBUTTON as i32, true),
+                WM_LBUTTONUP => (VK_LBUTTON as i32, false),
+                WM_RBUTTONDOWN => (VK_RBUTTON as i32, true),
+                WM_RBUTTONUP => (VK_RBUTTON as i32, false),
+                WM_MBUTTONDOWN => (VK_MBUTTON as i32, true),
+                WM_MBUTTONUP => (VK_MBUTTON as i32, false),
+                WM_XBUTTONDOWN => {
+                    let x = if ((mhs.mouseData >> 16) & 0xFFFF) == 1 {
+                        VK_XBUTTON1 as i32
+                    } else {
+                        VK_XBUTTON2 as i32
+                    };
+                    (x, true)
+                }
+                WM_XBUTTONUP => {
+                    let x = if ((mhs.mouseData >> 16) & 0xFFFF) == 1 {
+                        VK_XBUTTON1 as i32
+                    } else {
+                        VK_XBUTTON2 as i32
+                    };
+                    (x, false)
+                }
+                _ => (-1, false),
+            };
+            if vk >= 0 && (vk as usize) < 256 {
+                physical_key_state()[vk as usize].store(down, Ordering::Relaxed);
+            }
+        }
+    }
+    CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param)
+}
+
+#[cfg(target_os = "windows")]
+unsafe extern "system" fn keyboard_ll_proc(n_code: i32, w_param: usize, l_param: isize) -> LRESULT {
+    if n_code >= 0 {
+        let khs = &*(l_param as *const KBDLLHOOKSTRUCT);
+        if (khs.dwExtraInfo) != AUTOCLICKER_EXTRA_INFO {
+            let vk = khs.vkCode as i32;
+            if (0..256).contains(&vk) {
+                let down = matches!(w_param as u32, WM_KEYDOWN | WM_SYSKEYDOWN);
+                physical_key_state()[vk as usize].store(down, Ordering::Relaxed);
+            }
+        }
+    }
+    CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param)
+}
+
+#[cfg(target_os = "windows")]
+pub fn start_hotkey_listener(app: AppHandle) {
+    std::thread::spawn(move || unsafe {
+        let mouse_hook =
+            SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_ll_proc), std::ptr::null_mut(), 0);
+        let kb_hook = SetWindowsHookExW(
+            WH_KEYBOARD_LL,
+            Some(keyboard_ll_proc),
+            std::ptr::null_mut(),
+            0,
+        );
+
+        if !mouse_hook.is_null() && !kb_hook.is_null() {
+            HOOKS_ACTIVE.store(true, Ordering::SeqCst);
+        }
+
+        let mut was_pressed = false;
+        let mut last_check = Instant::now();
+        let mut msg: MSG = std::mem::zeroed();
+
+        loop {
+            while PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, PM_REMOVE) != 0 {
+                if msg.message == WM_QUIT {
+                    if !mouse_hook.is_null() {
+                        UnhookWindowsHookEx(mouse_hook);
+                    }
+                    if !kb_hook.is_null() {
+                        UnhookWindowsHookEx(kb_hook);
+                    }
+                    return;
+                }
+            }
+
+            if last_check.elapsed() >= POLL_INTERVAL {
+                last_check = Instant::now();
+
+                let (binding, strict) = {
+                    let state = app.state::<ClickerState>();
+                    let binding = state.registered_hotkey.lock().unwrap().clone();
+                    let strict = state.settings.lock().unwrap().strict_hotkey_modifiers;
+                    (binding, strict)
+                };
+
+                let currently_pressed = binding
+                    .as_ref()
+                    .map(|b| {
+                        if HOOKS_ACTIVE.load(Ordering::Relaxed) {
+                            is_hotkey_binding_pressed_physical(b, strict)
+                        } else {
+                            is_hotkey_binding_pressed(b, strict)
+                        }
+                    })
+                    .unwrap_or(false);
+
+                let suppress_until = app
+                    .state::<ClickerState>()
+                    .suppress_hotkey_until_ms
+                    .load(Ordering::SeqCst);
+                let suppress_until_release = app
+                    .state::<ClickerState>()
+                    .suppress_hotkey_until_release
+                    .load(Ordering::SeqCst);
+                let hotkey_capture_active = app
+                    .state::<ClickerState>()
+                    .hotkey_capture_active
+                    .load(Ordering::SeqCst);
+                let sequence_pick_active = app
+                    .state::<ClickerState>()
+                    .sequence_pick_active
+                    .load(Ordering::SeqCst);
+                let custom_stop_zone_pick_active = app
+                    .state::<ClickerState>()
+                    .custom_stop_zone_pick_active
+                    .load(Ordering::SeqCst);
+
+                if hotkey_capture_active || sequence_pick_active || custom_stop_zone_pick_active {
+                    was_pressed = currently_pressed;
+                    continue;
+                }
+
+                if suppress_until_release {
+                    if currently_pressed {
+                        was_pressed = true;
+                        continue;
+                    }
+                    app.state::<ClickerState>()
+                        .suppress_hotkey_until_release
+                        .store(false, Ordering::SeqCst);
+                    was_pressed = false;
+                    continue;
+                }
+
+                if now_epoch_ms() < suppress_until {
+                    was_pressed = currently_pressed;
+                    continue;
+                }
+
+                if currently_pressed && !was_pressed {
+                    handle_hotkey_pressed(&app);
+                } else if !currently_pressed && was_pressed {
+                    handle_hotkey_released(&app);
+                }
+
+                was_pressed = currently_pressed;
+            } else {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        }
+    });
+}
+
+#[cfg(target_os = "linux")]
 pub fn start_hotkey_listener(app: AppHandle) {
     std::thread::spawn(move || {
         let mut was_pressed = false;
-
         loop {
             let (binding, strict) = {
                 let state = app.state::<ClickerState>();
@@ -300,8 +509,16 @@ pub fn start_hotkey_listener(app: AppHandle) {
                 .state::<ClickerState>()
                 .hotkey_capture_active
                 .load(Ordering::SeqCst);
+            let sequence_pick_active = app
+                .state::<ClickerState>()
+                .sequence_pick_active
+                .load(Ordering::SeqCst);
+            let custom_stop_zone_pick_active = app
+                .state::<ClickerState>()
+                .custom_stop_zone_pick_active
+                .load(Ordering::SeqCst);
 
-            if hotkey_capture_active {
+            if hotkey_capture_active || sequence_pick_active || custom_stop_zone_pick_active {
                 was_pressed = currently_pressed;
                 std::thread::sleep(Duration::from_millis(12));
                 continue;
@@ -337,6 +554,19 @@ pub fn start_hotkey_listener(app: AppHandle) {
             std::thread::sleep(Duration::from_millis(12));
         }
     });
+}
+
+#[cfg(target_os = "windows")]
+fn is_hotkey_binding_pressed_physical(binding: &HotkeyBinding, strict: bool) -> bool {
+    let ctrl_down =
+        is_physical_vk_down(VK_LCONTROL as i32) || is_physical_vk_down(VK_RCONTROL as i32);
+    let alt_down = is_physical_vk_down(VK_LMENU as i32) || is_physical_vk_down(VK_RMENU as i32);
+    let shift_down = is_physical_vk_down(VK_LSHIFT as i32) || is_physical_vk_down(VK_RSHIFT as i32);
+    let super_down = is_physical_vk_down(VK_LWIN as i32) || is_physical_vk_down(VK_RWIN as i32);
+    if !modifiers_match(binding, ctrl_down, alt_down, shift_down, super_down, strict) {
+        return false;
+    }
+    is_physical_vk_down(binding.main_vk)
 }
 
 pub fn handle_hotkey_pressed(app: &AppHandle) {
@@ -390,33 +620,52 @@ fn modifiers_match(
     super_down: bool,
     strict: bool,
 ) -> bool {
-    if binding.ctrl && !ctrl_down { return false; }
-    if binding.alt && !alt_down { return false; }
-    if binding.shift && !shift_down { return false; }
-    if binding.super_key && !super_down { return false; }
+    if binding.ctrl && !ctrl_down {
+        return false;
+    }
+    if binding.alt && !alt_down {
+        return false;
+    }
+    if binding.shift && !shift_down {
+        return false;
+    }
+    if binding.super_key && !super_down {
+        return false;
+    }
 
     if strict {
-        if ctrl_down && !binding.ctrl { return false; }
-        if alt_down && !binding.alt { return false; }
-        if shift_down && !binding.shift { return false; }
-        if super_down && !binding.super_key { return false; }
+        if ctrl_down && !binding.ctrl {
+            return false;
+        }
+        if alt_down && !binding.alt {
+            return false;
+        }
+        if shift_down && !binding.shift {
+            return false;
+        }
+        if super_down && !binding.super_key {
+            return false;
+        }
     }
 
     true
 }
-
 
 #[cfg(target_os = "windows")]
 fn is_main_key_active_windows(vk: i32) -> bool {
     match vk {
         VK_SCROLL_UP_PSEUDO => {
             let ts = SCROLL_UP_AT.load(Ordering::SeqCst);
-            if ts == 0 { return false; }
+            if ts == 0 {
+                return false;
+            }
             now_epoch_ms().saturating_sub(ts) < SCROLL_WINDOW_MS
         }
         VK_SCROLL_DOWN_PSEUDO => {
             let ts = SCROLL_DOWN_AT.load(Ordering::SeqCst);
-            if ts == 0 { return false; }
+            if ts == 0 {
+                return false;
+            }
             now_epoch_ms().saturating_sub(ts) < SCROLL_WINDOW_MS
         }
         VK_NUMPAD_ENTER_PSEUDO => NUMPAD_ENTER_DOWN.load(Ordering::SeqCst),
@@ -432,22 +681,28 @@ pub fn is_vk_down(vk: i32) -> bool {
 #[cfg(target_os = "windows")]
 pub fn start_scroll_hook() {
     std::thread::spawn(|| unsafe {
-        let mouse_hook = SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_hook_proc), 0, 0);
-        if mouse_hook == 0 {
+        let mouse_hook =
+            SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_hook_proc), std::ptr::null_mut(), 0);
+        if mouse_hook.is_null() {
             log::error!("[Hotkeys] Failed to install WH_MOUSE_LL hook");
         }
 
-        let keyboard_hook = SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_hook_proc), 0, 0);
-        if keyboard_hook == 0 {
+        let keyboard_hook = SetWindowsHookExW(
+            WH_KEYBOARD_LL,
+            Some(keyboard_hook_proc),
+            std::ptr::null_mut(),
+            0,
+        );
+        if keyboard_hook.is_null() {
             log::error!("[Hotkeys] Failed to install WH_KEYBOARD_LL hook");
         }
 
-        if mouse_hook == 0 && keyboard_hook == 0 {
+        if mouse_hook.is_null() && keyboard_hook.is_null() {
             return;
         }
 
         let mut msg: MSG = std::mem::zeroed();
-        while GetMessageW(&mut msg, 0, 0, 0) > 0 {}
+        while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {}
     });
 }
 
@@ -467,7 +722,7 @@ unsafe extern "system" fn keyboard_hook_proc(code: i32, w_param: usize, l_param:
             }
         }
     }
-    CallNextHookEx(0, code, w_param, l_param)
+    CallNextHookEx(std::ptr::null_mut(), code, w_param, l_param)
 }
 
 #[cfg(target_os = "windows")]
@@ -491,9 +746,8 @@ unsafe extern "system" fn mouse_hook_proc(code: i32, w_param: usize, l_param: is
             SCROLL_DOWN_AT.store(now, Ordering::SeqCst);
         }
     }
-    CallNextHookEx(0, code, w_param, l_param)
+    CallNextHookEx(std::ptr::null_mut(), code, w_param, l_param)
 }
-
 
 #[cfg(target_os = "linux")]
 pub fn start_scroll_hook() {
@@ -507,8 +761,6 @@ mod linux_hotkeys {
     use evdev::{Key, RelativeAxisType};
     use std::sync::{OnceLock, RwLock};
     use std::time::Duration;
-
-
 
     static PRESSED_KEYS: OnceLock<RwLock<std::collections::HashSet<Key>>> = OnceLock::new();
 
@@ -528,59 +780,62 @@ mod linux_hotkeys {
             let mut open_errors: Vec<(std::path::PathBuf, std::io::Error)> = Vec::new();
 
             let mut kbd_devs: Vec<evdev::Device> = evdev::enumerate()
-                .filter_map(|(path, _)| {
-                    match evdev::Device::open(&path) {
-                        Ok(dev) => {
-                            let has_keys = dev
-                                .supported_keys()
-                                .map(|k| k.contains(Key::KEY_A))
-                                .unwrap_or(false);
-                            if has_keys {
-                                set_nonblock(&dev);
-                                Some(dev)
-                            } else {
-                                None
-                            }
-                        }
-                        Err(e) => {
-                            open_errors.push((path, e));
+                .filter_map(|(path, _)| match evdev::Device::open(&path) {
+                    Ok(dev) => {
+                        let has_keys = dev
+                            .supported_keys()
+                            .map(|k| k.contains(Key::KEY_A))
+                            .unwrap_or(false);
+                        if has_keys {
+                            set_nonblock(&dev);
+                            Some(dev)
+                        } else {
                             None
                         }
+                    }
+                    Err(e) => {
+                        open_errors.push((path, e));
+                        None
                     }
                 })
                 .collect();
 
             let mut mouse_devs: Vec<evdev::Device> = evdev::enumerate()
-                .filter_map(|(path, _)| {
-                    match evdev::Device::open(&path) {
-                        Ok(dev) => {
-                            let has_wheel = dev
-                                .supported_relative_axes()
-                                .map(|a| a.contains(RelativeAxisType::REL_WHEEL))
-                                .unwrap_or(false);
-                            if has_wheel {
-                                set_nonblock(&dev);
-                                Some(dev)
-                            } else {
-                                None
-                            }
-                        }
-                        Err(e) => {
-                            open_errors.push((path, e));
+                .filter_map(|(path, _)| match evdev::Device::open(&path) {
+                    Ok(dev) => {
+                        let has_wheel = dev
+                            .supported_relative_axes()
+                            .map(|a| a.contains(RelativeAxisType::REL_WHEEL))
+                            .unwrap_or(false);
+                        if has_wheel {
+                            set_nonblock(&dev);
+                            Some(dev)
+                        } else {
                             None
                         }
+                    }
+                    Err(e) => {
+                        open_errors.push((path, e));
+                        None
                     }
                 })
                 .collect();
 
             if kbd_devs.is_empty() && mouse_devs.is_empty() {
-                if open_errors.iter().any(|(_, e)| e.kind() == std::io::ErrorKind::PermissionDenied) {
+                if open_errors
+                    .iter()
+                    .any(|(_, e)| e.kind() == std::io::ErrorKind::PermissionDenied)
+                {
                     log::error!("[hotkeys] No evdev devices accessible. Make sure your user is in the 'input' group (sudo usermod -aG input $USER) and log out/back in.");
                 } else {
                     log::warn!("[hotkeys] No keyboard or mouse evdev devices found.");
                 }
             } else {
-                log::info!("[hotkeys] Opened {} keyboard and {} mouse evdev devices.", kbd_devs.len(), mouse_devs.len());
+                log::info!(
+                    "[hotkeys] Opened {} keyboard and {} mouse evdev devices.",
+                    kbd_devs.len(),
+                    mouse_devs.len()
+                );
             }
 
             loop {
@@ -590,13 +845,15 @@ mod linux_hotkeys {
                             if let Ok(mut keys) = pressed_keys().write() {
                                 for ev in events {
                                     match ev.kind() {
-                                        evdev::InputEventKind::Key(key) => {
-                                            match ev.value() {
-                                                1 | 2 => { keys.insert(key); }
-                                                0 => { keys.remove(&key); }
-                                                _ => {}
+                                        evdev::InputEventKind::Key(key) => match ev.value() {
+                                            1 | 2 => {
+                                                keys.insert(key);
                                             }
-                                        }
+                                            0 => {
+                                                keys.remove(&key);
+                                            }
+                                            _ => {}
+                                        },
                                         _ => {}
                                     }
                                 }
@@ -617,16 +874,22 @@ mod linux_hotkeys {
                                     {
                                         let now = now_epoch_ms();
                                         if ev.value() > 0 {
-                                            SCROLL_UP_AT.store(now, std::sync::atomic::Ordering::SeqCst);
+                                            SCROLL_UP_AT
+                                                .store(now, std::sync::atomic::Ordering::SeqCst);
                                         } else if ev.value() < 0 {
-                                            SCROLL_DOWN_AT.store(now, std::sync::atomic::Ordering::SeqCst);
+                                            SCROLL_DOWN_AT
+                                                .store(now, std::sync::atomic::Ordering::SeqCst);
                                         }
                                     }
                                     evdev::InputEventKind::Key(key) => {
                                         if let Ok(mut keys) = pressed_keys().write() {
                                             match ev.value() {
-                                                1 | 2 => { keys.insert(key); }
-                                                0 => { keys.remove(&key); }
+                                                1 | 2 => {
+                                                    keys.insert(key);
+                                                }
+                                                0 => {
+                                                    keys.remove(&key);
+                                                }
                                                 _ => {}
                                             }
                                         }
@@ -649,24 +912,42 @@ mod linux_hotkeys {
         if token.len() == 1 {
             let ch = token.chars().next().unwrap();
             return match ch {
-                'a' => Some(Key::KEY_A), 'b' => Some(Key::KEY_B),
-                'c' => Some(Key::KEY_C), 'd' => Some(Key::KEY_D),
-                'e' => Some(Key::KEY_E), 'f' => Some(Key::KEY_F),
-                'g' => Some(Key::KEY_G), 'h' => Some(Key::KEY_H),
-                'i' => Some(Key::KEY_I), 'j' => Some(Key::KEY_J),
-                'k' => Some(Key::KEY_K), 'l' => Some(Key::KEY_L),
-                'm' => Some(Key::KEY_M), 'n' => Some(Key::KEY_N),
-                'o' => Some(Key::KEY_O), 'p' => Some(Key::KEY_P),
-                'q' => Some(Key::KEY_Q), 'r' => Some(Key::KEY_R),
-                's' => Some(Key::KEY_S), 't' => Some(Key::KEY_T),
-                'u' => Some(Key::KEY_U), 'v' => Some(Key::KEY_V),
-                'w' => Some(Key::KEY_W), 'x' => Some(Key::KEY_X),
-                'y' => Some(Key::KEY_Y), 'z' => Some(Key::KEY_Z),
-                '0' => Some(Key::KEY_0), '1' => Some(Key::KEY_1),
-                '2' => Some(Key::KEY_2), '3' => Some(Key::KEY_3),
-                '4' => Some(Key::KEY_4), '5' => Some(Key::KEY_5),
-                '6' => Some(Key::KEY_6), '7' => Some(Key::KEY_7),
-                '8' => Some(Key::KEY_8), '9' => Some(Key::KEY_9),
+                'a' => Some(Key::KEY_A),
+                'b' => Some(Key::KEY_B),
+                'c' => Some(Key::KEY_C),
+                'd' => Some(Key::KEY_D),
+                'e' => Some(Key::KEY_E),
+                'f' => Some(Key::KEY_F),
+                'g' => Some(Key::KEY_G),
+                'h' => Some(Key::KEY_H),
+                'i' => Some(Key::KEY_I),
+                'j' => Some(Key::KEY_J),
+                'k' => Some(Key::KEY_K),
+                'l' => Some(Key::KEY_L),
+                'm' => Some(Key::KEY_M),
+                'n' => Some(Key::KEY_N),
+                'o' => Some(Key::KEY_O),
+                'p' => Some(Key::KEY_P),
+                'q' => Some(Key::KEY_Q),
+                'r' => Some(Key::KEY_R),
+                's' => Some(Key::KEY_S),
+                't' => Some(Key::KEY_T),
+                'u' => Some(Key::KEY_U),
+                'v' => Some(Key::KEY_V),
+                'w' => Some(Key::KEY_W),
+                'x' => Some(Key::KEY_X),
+                'y' => Some(Key::KEY_Y),
+                'z' => Some(Key::KEY_Z),
+                '0' => Some(Key::KEY_0),
+                '1' => Some(Key::KEY_1),
+                '2' => Some(Key::KEY_2),
+                '3' => Some(Key::KEY_3),
+                '4' => Some(Key::KEY_4),
+                '5' => Some(Key::KEY_5),
+                '6' => Some(Key::KEY_6),
+                '7' => Some(Key::KEY_7),
+                '8' => Some(Key::KEY_8),
+                '9' => Some(Key::KEY_9),
                 '/' => Some(Key::KEY_SLASH),
                 '\\' => Some(Key::KEY_BACKSLASH),
                 ';' => Some(Key::KEY_SEMICOLON),
@@ -760,16 +1041,32 @@ mod linux_hotkeys {
         let shift_down = keys.contains(&Key::KEY_LEFTSHIFT) || keys.contains(&Key::KEY_RIGHTSHIFT);
         let super_down = keys.contains(&Key::KEY_LEFTMETA) || keys.contains(&Key::KEY_RIGHTMETA);
 
-        if binding.ctrl && !ctrl_down { return false; }
-        if binding.alt && !alt_down { return false; }
-        if binding.shift && !shift_down { return false; }
-        if binding.super_key && !super_down { return false; }
+        if binding.ctrl && !ctrl_down {
+            return false;
+        }
+        if binding.alt && !alt_down {
+            return false;
+        }
+        if binding.shift && !shift_down {
+            return false;
+        }
+        if binding.super_key && !super_down {
+            return false;
+        }
 
         if strict {
-            if ctrl_down && !binding.ctrl { return false; }
-            if alt_down && !binding.alt { return false; }
-            if shift_down && !binding.shift { return false; }
-            if super_down && !binding.super_key { return false; }
+            if ctrl_down && !binding.ctrl {
+                return false;
+            }
+            if alt_down && !binding.alt {
+                return false;
+            }
+            if shift_down && !binding.shift {
+                return false;
+            }
+            if super_down && !binding.super_key {
+                return false;
+            }
         }
 
         true
@@ -797,7 +1094,6 @@ mod linux_hotkeys {
             _ => {}
         }
 
-
         match token {
             "mouseleft" => return is_evdev_key_pressed(Key::BTN_LEFT),
             "mouseright" => return is_evdev_key_pressed(Key::BTN_RIGHT),
@@ -815,7 +1111,6 @@ mod linux_hotkeys {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::{format_hotkey_binding, modifiers_match, parse_hotkey_binding};
@@ -823,10 +1118,22 @@ mod tests {
     #[test]
     fn numpad_tokens_round_trip() {
         for token in [
-            "numpad0", "numpad1", "numpad2", "numpad3", "numpad4",
-            "numpad5", "numpad6", "numpad7", "numpad8", "numpad9",
-            "numpadadd", "numpadsubtract", "numpadmultiply",
-            "numpaddivide", "numpaddecimal", "numpadenter",
+            "numpad0",
+            "numpad1",
+            "numpad2",
+            "numpad3",
+            "numpad4",
+            "numpad5",
+            "numpad6",
+            "numpad7",
+            "numpad8",
+            "numpad9",
+            "numpadadd",
+            "numpadsubtract",
+            "numpadmultiply",
+            "numpaddivide",
+            "numpaddecimal",
+            "numpadenter",
         ] {
             let hotkey = format!("ctrl+shift+{token}");
             let binding = parse_hotkey_binding(&hotkey).expect("token should parse");

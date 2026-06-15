@@ -40,6 +40,7 @@ pub fn run() {
             suppress_hotkey_until_release: AtomicBool::new(false),
             hotkey_capture_active: AtomicBool::new(false),
             sequence_pick_active: AtomicBool::new(false),
+            custom_stop_zone_pick_active: AtomicBool::new(false),
             settings_initialized: AtomicBool::new(false),
         })
         .setup(|app| {
@@ -116,7 +117,6 @@ pub fn run() {
                     Err(e) => log::info!("[Updates] Check failed: {}", e),
                 }
             });
-
 
             if let Some(window) = app.get_webview_window("main") {
                 if let Ok(monitors) = window.available_monitors() {

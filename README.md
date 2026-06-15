@@ -1,4 +1,6 @@
 [![Downloads](https://img.shields.io/github/downloads/Zynix-Scripts/Blur-AutoClicker-Linux/total?style=for-the-badge&label=downloads)](https://github.com/Zynix-Scripts/Blur-AutoClicker-Linux/releases)
+[![Version](https://img.shields.io/github/package-json/v/Zynix-Scripts/Blur-AutoClicker-Linux?style=for-the-badge&label=version)](https://github.com/Zynix-Scripts/Blur-AutoClicker-Linux/releases)
+[![License](https://img.shields.io/github/license/Zynix-Scripts/Blur-AutoClicker-Linux?style=for-the-badge)](LICENSE)
 
 # Blur Auto Clicker | Linux Port
 
@@ -43,14 +45,14 @@ If you are on a hybrid XWayland system (both `DISPLAY` and `WAYLAND_DISPLAY` are
 </div>
 <p align="center"><em>Blur Auto Clicker reaching 500 CPS steadily</em></p>
 
-Simple Mode:
+**Simple Mode:**
 - On / Off indicator (Blur logo turns green when active)
 - Individual mouse button settings (left, right, middle)
 - Keyboard key pressing with lower/uppercase letter control
 - Hold / Toggle activation modes
 - Customizable hotkeys
 
-Advanced Mode (includes all Simple Mode features plus):
+**Advanced Mode** (includes all Simple Mode features plus):
 - Adjustable click timing (duty cycle)
 - Speed Range Mode (randomizes CPS within a range)
 - Corner and edge stopping (failsafe stop zones)
@@ -59,13 +61,13 @@ Advanced Mode (includes all Simple Mode features plus):
 - Position Clicking (pick a position | the mouse moves there and clicks)
 - Clicks adjustable to per Second, Minute, Hour, or Day
 
-Other Features:
+**Other Features:**
 - Click stats (total clicks, sessions, avg CPU)
 - Multi-monitor aware edge/corner detection
 
 ---
 
-## Installation
+## Quick Start
 
 <div align="center">
   <a href="https://github.com/Zynix-Scripts/Blur-AutoClicker-Linux/releases/latest">
@@ -78,14 +80,15 @@ This is a portable binary | no installer needed.
 Config and stats are stored in `~/.local/share/BlurAutoClicker/`.
 
 ---
+
 ## Building From Source
 
-#### Requirements:
+### Requirements:
 - Node.js 20 or newer
 - Rust via `rustup`
 - Linux system dependencies for Tauri (see [Tauri prerequisites](https://tauri.app/start/prerequisites/))
 
-#### Setup:
+### Setup:
 ```bash
 git clone https://github.com/Zynix-Scripts/Blur-AutoClicker-Linux.git
 cd Blur-AutoClicker-Linux
@@ -123,6 +126,22 @@ cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
 The built binary and packages are written to `src-tauri/target/release/bundle/`.
+
+---
+
+## FAQ
+
+<details>
+<summary><b>Why is CPS capped at 500?</b></summary>
+
+The practical limit for reliable mouse events on most systems is around 500 CPS. A 1000 CPS setting is available but not recommended.
+</details>
+
+<details>
+<summary><b>Can I build from source?</b></summary>
+
+Yes — see <a href="BUILDING.md">BUILDING.md</a> for setup, build, and validation commands. For contributing guidelines, see <a href="CONTRIBUTING.md">CONTRIBUTING.md</a>.
+</details>
 
 ---
 

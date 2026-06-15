@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::rng::SmallRng;
 use super::worker::{sleep_interruptible, RunControl};
+use super::AUTOCLICKER_EXTRA_INFO;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct VirtualScreenRect {
@@ -14,14 +15,23 @@ pub struct VirtualScreenRect {
 impl VirtualScreenRect {
     #[inline]
     pub fn new(left: i32, top: i32, width: i32, height: i32) -> Self {
-        Self { left, top, width, height }
+        Self {
+            left,
+            top,
+            width,
+            height,
+        }
     }
 
     #[inline]
-    pub fn right(self) -> i32 { self.left + self.width }
+    pub fn right(self) -> i32 {
+        self.left + self.width
+    }
 
     #[inline]
-    pub fn bottom(self) -> i32 { self.top + self.height }
+    pub fn bottom(self) -> i32 {
+        self.top + self.height
+    }
 
     #[inline]
     pub fn contains(self, x: i32, y: i32) -> bool {
@@ -30,7 +40,12 @@ impl VirtualScreenRect {
 
     #[inline]
     pub fn offset_from(self, origin: VirtualScreenRect) -> Self {
-        Self::new(self.left - origin.left, self.top - origin.top, self.width, self.height)
+        Self::new(
+            self.left - origin.left,
+            self.top - origin.top,
+            self.width,
+            self.height,
+        )
     }
 }
 
@@ -48,7 +63,6 @@ pub fn set_cached_virtual_screen_rect(rect: VirtualScreenRect) {
     let mut guard = CACHED_VIRTUAL_SCREEN_RECT.lock().unwrap();
     *guard = Some(rect);
 }
-
 
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
@@ -68,7 +82,11 @@ pub fn current_cursor_position() -> Option<(i32, i32)> {
     use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
     let mut point = POINT { x: 0, y: 0 };
     let ok = unsafe { GetCursorPos(&mut point) };
-    if ok == 0 { None } else { Some((point.x, point.y)) }
+    if ok == 0 {
+        None
+    } else {
+        Some((point.x, point.y))
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -77,7 +95,9 @@ pub fn current_virtual_screen_rect() -> Option<VirtualScreenRect> {
     let top = unsafe { GetSystemMetrics(SM_YVIRTUALSCREEN) };
     let width = unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) };
     let height = unsafe { GetSystemMetrics(SM_CYVIRTUALSCREEN) };
-    if width <= 0 || height <= 0 { return None; }
+    if width <= 0 || height <= 0 {
+        return None;
+    }
     Some(VirtualScreenRect::new(left, top, width, height))
 }
 
@@ -88,8 +108,8 @@ pub fn current_monitor_rects() -> Option<Vec<VirtualScreenRect>> {
     use windows_sys::Win32::Graphics::Gdi::{EnumDisplayMonitors, GetMonitorInfoW, MONITORINFO};
 
     unsafe extern "system" fn enum_monitor_proc(
-        monitor: isize,
-        _hdc: isize,
+        monitor: *mut std::ffi::c_void,
+        _hdc: *mut std::ffi::c_void,
         _clip_rect: *mut RECT,
         user_data: isize,
     ) -> i32 {
@@ -111,7 +131,7 @@ pub fn current_monitor_rects() -> Option<Vec<VirtualScreenRect>> {
     let mut monitors = Vec::new();
     let ok = unsafe {
         EnumDisplayMonitors(
-            0,
+            std::ptr::null_mut(),
             ptr::null(),
             Some(enum_monitor_proc),
             &mut monitors as *mut Vec<VirtualScreenRect> as isize,
@@ -144,7 +164,7 @@ pub fn make_input(flags: u32, time: u32) -> INPUT {
                 mouseData: 0,
                 dwFlags: flags,
                 time,
-                dwExtraInfo: 0,
+                dwExtraInfo: AUTOCLICKER_EXTRA_INFO,
             },
         },
     }
@@ -183,14 +203,11 @@ pub fn get_button_flags(button: i32) -> (u32, u32) {
     }
 }
 
-
 #[cfg(target_os = "linux")]
 mod linux {
     pub fn use_x11() -> bool {
         std::env::var_os("DISPLAY").is_some()
     }
-
-
 
     pub mod x11 {
         use std::sync::OnceLock;
@@ -208,18 +225,25 @@ mod linux {
         static STATE: OnceLock<Option<State>> = OnceLock::new();
 
         fn get() -> Option<&'static State> {
-            STATE.get_or_init(|| {
-                match x11rb::connect(None) {
+            STATE
+                .get_or_init(|| match x11rb::connect(None) {
                     Ok((conn, snum)) => {
                         let root = conn.setup().roots[snum].root;
-                        Some(State { conn, root, screen_num: snum })
+                        Some(State {
+                            conn,
+                            root,
+                            screen_num: snum,
+                        })
                     }
                     Err(e) => {
-                        log::error!("[x11] Failed to connect to X server (DISPLAY={:?}): {e}", std::env::var_os("DISPLAY"));
+                        log::error!(
+                            "[x11] Failed to connect to X server (DISPLAY={:?}): {e}",
+                            std::env::var_os("DISPLAY")
+                        );
                         None
                     }
-                }
-            }).as_ref()
+                })
+                .as_ref()
         }
 
         pub fn cursor_pos() -> Option<(i32, i32)> {
@@ -243,7 +267,8 @@ mod linux {
             let s = get()?;
             let screen = &s.conn.setup().roots[s.screen_num];
             Some(super::super::VirtualScreenRect::new(
-                0, 0,
+                0,
+                0,
                 screen.width_in_pixels as i32,
                 screen.height_in_pixels as i32,
             ))
@@ -253,16 +278,25 @@ mod linux {
             use x11rb::protocol::randr::ConnectionExt as RandrExt;
             let s = get()?;
 
-            let randr = s.conn.randr_get_monitors(s.root, true)
+            let randr = s
+                .conn
+                .randr_get_monitors(s.root, true)
                 .ok()
                 .and_then(|c| c.reply().ok())
                 .filter(|r| !r.monitors.is_empty())
                 .map(|reply| {
-                    let mut rects: Vec<_> = reply.monitors.iter().map(|m| {
-                        super::super::VirtualScreenRect::new(
-                            m.x as i32, m.y as i32, m.width as i32, m.height as i32,
-                        )
-                    }).collect();
+                    let mut rects: Vec<_> = reply
+                        .monitors
+                        .iter()
+                        .map(|m| {
+                            super::super::VirtualScreenRect::new(
+                                m.x as i32,
+                                m.y as i32,
+                                m.width as i32,
+                                m.height as i32,
+                            )
+                        })
+                        .collect();
                     rects.sort_by_key(|r| (r.top, r.left));
                     rects
                 });
@@ -275,7 +309,10 @@ mod linux {
                 log::error!("[x11] Cannot move cursor: no X11 connection available");
                 return;
             };
-            if let Err(e) = s.conn.warp_pointer(0u32, s.root, 0, 0, 0, 0, x as i16, y as i16) {
+            if let Err(e) = s
+                .conn
+                .warp_pointer(0u32, s.root, 0, 0, 0, 0, x as i16, y as i16)
+            {
                 log::error!("[x11] warp_pointer request failed: {e:?}");
             }
             if let Err(e) = s.conn.flush() {
@@ -295,7 +332,10 @@ mod linux {
                 3 => 2,
                 _ => 1,
             };
-            if let Err(e) = s.conn.xtest_fake_input(event_type, x11_btn, 0, s.root, 0, 0, 0) {
+            if let Err(e) = s
+                .conn
+                .xtest_fake_input(event_type, x11_btn, 0, s.root, 0, 0, 0)
+            {
                 log::error!("[x11] xtest_fake_input request failed: {e:?}");
             }
             if let Err(e) = s.conn.flush() {
@@ -304,12 +344,10 @@ mod linux {
         }
     }
 
-
-
     pub mod uinput {
-        use std::sync::{Mutex, OnceLock};
         use evdev::uinput::VirtualDevice;
         use evdev::{AttributeSet, EventType, InputEvent, Key, RelativeAxisType};
+        use std::sync::{Mutex, OnceLock};
 
         static DEVICE: OnceLock<Option<Mutex<VirtualDevice>>> = OnceLock::new();
 
@@ -385,7 +423,6 @@ mod linux {
         }
     }
 
-
     pub const LEFT_DOWN: u32 = 0x11;
     pub const LEFT_UP: u32 = 0x10;
     pub const RIGHT_DOWN: u32 = 0x21;
@@ -414,7 +451,11 @@ pub fn linux_mouse_diagnostic() -> String {
         match x11rb::connect(None) {
             Ok((conn, _)) => {
                 use x11rb::connection::RequestConnection;
-                let xtest_ok = conn.extension_information(x11rb::protocol::xtest::X11_EXTENSION_NAME).ok().flatten().is_some();
+                let xtest_ok = conn
+                    .extension_information(x11rb::protocol::xtest::X11_EXTENSION_NAME)
+                    .ok()
+                    .flatten()
+                    .is_some();
                 let mut msg = format!("X11 backend (DISPLAY={:?})", std::env::var_os("DISPLAY"));
                 if xtest_ok {
                     msg.push_str(" - XTEST extension available");
@@ -428,19 +469,27 @@ pub fn linux_mouse_diagnostic() -> String {
                 msg
             }
             Err(e) => {
-                format!("X11 backend (DISPLAY={:?}) - CONNECTION FAILED: {e}", std::env::var_os("DISPLAY"))
+                format!(
+                    "X11 backend (DISPLAY={:?}) - CONNECTION FAILED: {e}",
+                    std::env::var_os("DISPLAY")
+                )
             }
         }
     } else {
         let uinput_path = std::path::Path::new("/dev/uinput");
         let exists = uinput_path.exists();
-        let writable = std::fs::OpenOptions::new().write(true).open(uinput_path).is_ok();
+        let writable = std::fs::OpenOptions::new()
+            .write(true)
+            .open(uinput_path)
+            .is_ok();
         if exists && writable {
             format!("Wayland uinput backend - /dev/uinput is accessible")
         } else if exists {
             format!("Wayland uinput backend - /dev/uinput exists but is NOT writable (user not in 'input' group?)")
         } else {
-            format!("Wayland uinput backend - /dev/uinput does not exist (uinput module not loaded?)")
+            format!(
+                "Wayland uinput backend - /dev/uinput does not exist (uinput module not loaded?)"
+            )
         }
     }
 }
@@ -519,7 +568,6 @@ pub fn get_button_flags(button: i32) -> (u32, u32) {
     }
 }
 
-
 #[inline]
 pub fn get_cursor_pos() -> (i32, i32) {
     current_cursor_position().unwrap_or((0, 0))
@@ -565,7 +613,11 @@ pub fn send_clicks(
 
 #[inline]
 pub fn ease_in_out_quad(t: f64) -> f64 {
-    if t < 0.5 { 2.0 * t * t } else { 1.0 - (-2.0 * t + 2.0).powi(2) / 2.0 }
+    if t < 0.5 {
+        2.0 * t * t
+    } else {
+        1.0 - (-2.0 * t + 2.0).powi(2) / 2.0
+    }
 }
 
 #[inline]

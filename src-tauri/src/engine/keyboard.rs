@@ -1,12 +1,13 @@
 use std::time::Duration;
 
 use super::worker::{sleep_interruptible, RunControl};
+use super::AUTOCLICKER_EXTRA_INFO;
 
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     GetKeyState, MapVirtualKeyW, SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT,
-    KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, MAPVK_VK_TO_VSC_EX,
-    VK_CAPITAL, VK_SHIFT,
+    KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, MAPVK_VK_TO_VSC_EX, VK_CAPITAL,
+    VK_SHIFT,
 };
 
 #[inline]
@@ -34,7 +35,7 @@ pub fn make_keyboard_input(vk: u16, flags: u32) -> INPUT {
                 wScan: scan,
                 dwFlags: flags | KEYEVENTF_SCANCODE | ext_flag,
                 time: 0,
-                dwExtraInfo: 0,
+                dwExtraInfo: AUTOCLICKER_EXTRA_INFO,
             },
         },
     }
@@ -119,36 +120,38 @@ mod linux {
     static DEVICE: OnceLock<Option<Mutex<evdev::uinput::VirtualDevice>>> = OnceLock::new();
 
     pub fn get() -> Option<&'static Mutex<evdev::uinput::VirtualDevice>> {
-        DEVICE.get_or_init(|| {
-            let builder = match evdev::uinput::VirtualDeviceBuilder::new() {
-                Ok(b) => b,
-                Err(e) => {
-                    log::error!("[uinput-keyboard] Failed to open /dev/uinput: {e}");
-                    return None;
-                }
-            };
+        DEVICE
+            .get_or_init(|| {
+                let builder = match evdev::uinput::VirtualDeviceBuilder::new() {
+                    Ok(b) => b,
+                    Err(e) => {
+                        log::error!("[uinput-keyboard] Failed to open /dev/uinput: {e}");
+                        return None;
+                    }
+                };
 
-            let keys: Vec<Key> = (evdev::Key::KEY_ESC.code()..=evdev::Key::KEY_MICMUTE.code())
-                .filter_map(|code| {
-                    let key = Key::new(code);
-                    // evdev::Key enum only contains real key codes; skip unknown.
-                    Some(key)
-                })
-                .collect();
+                let keys: Vec<Key> = (evdev::Key::KEY_ESC.code()..=evdev::Key::KEY_MICMUTE.code())
+                    .filter_map(|code| {
+                        let key = Key::new(code);
+                        // evdev::Key enum only contains real key codes; skip unknown.
+                        Some(key)
+                    })
+                    .collect();
 
-            let dev = match builder
-                .name("blur-autoclicker-keyboard")
-                .with_keys(&AttributeSet::from_iter(keys))
-                .and_then(|b| b.build())
-            {
-                Ok(d) => d,
-                Err(e) => {
-                    log::error!("[uinput-keyboard] Failed to build virtual device: {e}");
-                    return None;
-                }
-            };
-            Some(Mutex::new(dev))
-        }).as_ref()
+                let dev = match builder
+                    .name("blur-autoclicker-keyboard")
+                    .with_keys(&AttributeSet::from_iter(keys))
+                    .and_then(|b| b.build())
+                {
+                    Ok(d) => d,
+                    Err(e) => {
+                        log::error!("[uinput-keyboard] Failed to build virtual device: {e}");
+                        return None;
+                    }
+                };
+                Some(Mutex::new(dev))
+            })
+            .as_ref()
     }
 
     pub fn available() -> bool {
@@ -159,24 +162,42 @@ mod linux {
         if token.len() == 1 {
             let ch = token.chars().next().unwrap();
             return match ch.to_ascii_lowercase() {
-                'a' => Some(Key::KEY_A), 'b' => Some(Key::KEY_B),
-                'c' => Some(Key::KEY_C), 'd' => Some(Key::KEY_D),
-                'e' => Some(Key::KEY_E), 'f' => Some(Key::KEY_F),
-                'g' => Some(Key::KEY_G), 'h' => Some(Key::KEY_H),
-                'i' => Some(Key::KEY_I), 'j' => Some(Key::KEY_J),
-                'k' => Some(Key::KEY_K), 'l' => Some(Key::KEY_L),
-                'm' => Some(Key::KEY_M), 'n' => Some(Key::KEY_N),
-                'o' => Some(Key::KEY_O), 'p' => Some(Key::KEY_P),
-                'q' => Some(Key::KEY_Q), 'r' => Some(Key::KEY_R),
-                's' => Some(Key::KEY_S), 't' => Some(Key::KEY_T),
-                'u' => Some(Key::KEY_U), 'v' => Some(Key::KEY_V),
-                'w' => Some(Key::KEY_W), 'x' => Some(Key::KEY_X),
-                'y' => Some(Key::KEY_Y), 'z' => Some(Key::KEY_Z),
-                '0' => Some(Key::KEY_0), '1' => Some(Key::KEY_1),
-                '2' => Some(Key::KEY_2), '3' => Some(Key::KEY_3),
-                '4' => Some(Key::KEY_4), '5' => Some(Key::KEY_5),
-                '6' => Some(Key::KEY_6), '7' => Some(Key::KEY_7),
-                '8' => Some(Key::KEY_8), '9' => Some(Key::KEY_9),
+                'a' => Some(Key::KEY_A),
+                'b' => Some(Key::KEY_B),
+                'c' => Some(Key::KEY_C),
+                'd' => Some(Key::KEY_D),
+                'e' => Some(Key::KEY_E),
+                'f' => Some(Key::KEY_F),
+                'g' => Some(Key::KEY_G),
+                'h' => Some(Key::KEY_H),
+                'i' => Some(Key::KEY_I),
+                'j' => Some(Key::KEY_J),
+                'k' => Some(Key::KEY_K),
+                'l' => Some(Key::KEY_L),
+                'm' => Some(Key::KEY_M),
+                'n' => Some(Key::KEY_N),
+                'o' => Some(Key::KEY_O),
+                'p' => Some(Key::KEY_P),
+                'q' => Some(Key::KEY_Q),
+                'r' => Some(Key::KEY_R),
+                's' => Some(Key::KEY_S),
+                't' => Some(Key::KEY_T),
+                'u' => Some(Key::KEY_U),
+                'v' => Some(Key::KEY_V),
+                'w' => Some(Key::KEY_W),
+                'x' => Some(Key::KEY_X),
+                'y' => Some(Key::KEY_Y),
+                'z' => Some(Key::KEY_Z),
+                '0' => Some(Key::KEY_0),
+                '1' => Some(Key::KEY_1),
+                '2' => Some(Key::KEY_2),
+                '3' => Some(Key::KEY_3),
+                '4' => Some(Key::KEY_4),
+                '5' => Some(Key::KEY_5),
+                '6' => Some(Key::KEY_6),
+                '7' => Some(Key::KEY_7),
+                '8' => Some(Key::KEY_8),
+                '9' => Some(Key::KEY_9),
                 '/' => Some(Key::KEY_SLASH),
                 '\\' => Some(Key::KEY_BACKSLASH),
                 ';' => Some(Key::KEY_SEMICOLON),

@@ -28,9 +28,7 @@ pub struct RunRecord {
 
 fn stats_file_path() -> PathBuf {
     #[cfg(target_os = "windows")]
-    let base = PathBuf::from(
-        std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string())
-    );
+    let base = PathBuf::from(std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string()));
     #[cfg(not(target_os = "windows"))]
     let base = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
 
@@ -40,7 +38,6 @@ fn stats_file_path() -> PathBuf {
 fn round2(v: f64) -> f64 {
     (v * 100.0).round() / 100.0
 }
-
 
 fn read_all_runs() -> Result<Vec<RunRecord>, String> {
     let path = stats_file_path();
@@ -117,7 +114,6 @@ fn next_id(runs: &[RunRecord]) -> u64 {
     runs.iter().map(|r| r.id).max().unwrap_or(0) + 1
 }
 
-
 fn compact_runs(runs: &mut Vec<RunRecord>) {
     if runs.len() < MAX_NORMAL_RUNS {
         return;
@@ -139,7 +135,10 @@ fn compact_runs(runs: &mut Vec<RunRecord>) {
     let avg_cpu = if valid_cpu.is_empty() {
         -1.0
     } else {
-        let weighted_sum: f64 = valid_cpu.iter().map(|(cpu, count)| cpu * *count as f64).sum();
+        let weighted_sum: f64 = valid_cpu
+            .iter()
+            .map(|(cpu, count)| cpu * *count as f64)
+            .sum();
         let weight: u64 = valid_cpu.iter().map(|(_, count)| *count as u64).sum();
         round2(weighted_sum / weight as f64)
     };

@@ -7,6 +7,7 @@ pub mod worker;
 use crate::engine::mouse::VirtualScreenRect;
 use std::sync::atomic::AtomicI64;
 pub use worker::start_clicker;
+pub const AUTOCLICKER_EXTRA_INFO: usize = 0x800D_A5A5; //Just a random Identifier
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SequenceTarget {
