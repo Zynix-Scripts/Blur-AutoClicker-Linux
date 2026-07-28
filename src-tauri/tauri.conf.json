@@ -62,7 +62,6 @@
   "bundle": {
     "active": true,
     "targets": ["deb", "rpm"],
-    "createUpdaterArtifacts": true,
     "publisher": "Blur009",
     "copyright": "Copyright (c) Blur009",
     "category": "Utility",

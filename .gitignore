@@ -46,6 +46,7 @@ lerna-debug.log*
 .VSCodeCounter/
 *.csv
 .linux-ref/
+result
 
 # -- Local UI test harness --
 test.html
