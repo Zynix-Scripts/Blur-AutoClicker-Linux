@@ -65,14 +65,20 @@ rustup default stable
 echo "Building production build..."
 npm exec tauri build
 
+echo "Creating CLI shortcut..."
+echo -e "cd /\n.$(pwd)/src-tauri/target/release/BlurAutoClicker &" >>openClicker.sh
+chmod +x openClicker.sh
+sudo mv openClicker.sh /usr/local/bin
+alias clicker="openClicker.sh"
+
 case "$LaunchAfterInstall" in
 "Y" | "y")
   echo "Launching..."
-  if [ -e "./src-tauri/target/release/BlurAutoClicker" ]; then
-    ./src-tauri/target/release/BlurAutoClicker &
+  if [ -e "clicker" ]; then
+    clicker
   fi
   ;;
 "" | "N" | "n")
-  echo "To launch run './src-tauri/target/release/BlurAutoClicker', If clicking doesn't work try restarting or adding yourself to the input group"
+  echo "To launch run 'clicker', If clicking doesn't work try restarting or adding yourself to the input group"
   ;;
 esac
